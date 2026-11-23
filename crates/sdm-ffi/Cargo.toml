@@ -1,0 +1,24 @@
+[package]
+name = "sdm-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "seamless_download_core"
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+sdm-core.workspace = true
+sdm-api.workspace = true
+sdm-engine.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+windows = { workspace = true, features = ["Win32_Media_Audio", "Win32_System_Power"] }
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seamless Download Manager Settings</title>
+  <link rel="stylesheet" href="../ui/theme.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <img src="../icons/icon-128.png" width="56" height="56" alt="">
+      <div>
+        <h1>Seamless Download Manager</h1>
+        <p class="hint">Browser extension settings. Changes save as you make them.</p>
+      </div>
+    </header>
+
+    <section class="card edge group" aria-labelledby="h-catch">
+      <h2 id="h-catch">Catching downloads</h2>
+      <label class="row">
+        <span class="label">Catch downloads</span>
+        <input class="sw" type="checkbox" data-key="autoCapture">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+      <p class="hint">Files and attachments go to Seamless. Web pages always stay in the browser.</p>
+
+      <div class="block">
+        <div class="line"><label for="include">Always catch these file types</label><button class="link" type="button" data-reset="includeTypes">Reset</button></div>
+        <div class="field edge"><textarea id="include" spellcheck="false" placeholder="zip rar 7z iso"></textarea></div>
+        <p class="hint">Separate with spaces. Types that are not pages are caught anyway.</p>
+      </div>
+
+      <div class="block">
+        <label for="exclude">Never catch these file types</label>
+        <div class="field edge"><textarea id="exclude" spellcheck="false" placeholder="torrent"></textarea></div>
+        <p class="hint">Separate with spaces. These stay in the browser.</p>
+      </div>
+
+      <div class="block">
+        <label for="sites">Ignored sites</label>
+        <div class="field edge"><textarea id="sites" spellcheck="false" placeholder="example.com&#10;https://cdn.example.com/private/*"></textarea></div>
+        <p class="hint">One per line. A site name covers its sub-sites. Use * as a wildcard.</p>
+      </div>
+
+      <div class="block">
+        <label for="min">Smallest file to catch</label>
+        <div class="pair">
+          <div class="field edge"><input id="min" type="number" min="0" step="1" inputmode="numeric"></div>
+          <div class="field edge unit"><select id="unit" aria-label="Unit"><option value="1">KB</option><option value="1024">MB</option><option value="1048576">GB</option></select></div>
+        </div>
+        <p class="hint">Smaller files stay in the browser. Zero means no limit.</p>
+      </div>
+
+      <div class="block">
+        <div class="line"><span id="bypass-label">Let the browser download instead</span><button class="link" type="button" data-reset="bypassKey">Reset</button></div>
+        <button id="bypass" class="btn edge key" type="button" aria-labelledby="bypass-label bypass"></button>
+        <p class="hint">Hold this key while you click a link. Press Esc to cancel recording.</p>
+      </div>
+
+      <label class="row">
+        <span class="label">Close the empty tab a caught link opens</span>
+        <input class="sw" type="checkbox" data-key="closeTab">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+    </section>
+
+    <section class="card edge group" aria-labelledby="h-page">
+      <h2 id="h-page">Page buttons</h2>
+      <label class="row">
+        <span class="label">Show the download button on pages</span>
+        <input class="sw" type="checkbox" data-key="pageButtons">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+      <p class="hint">Appears when you select links, and over videos and audio it finds.</p>
+    </section>
+
+    <section class="card edge group" aria-labelledby="h-menu">
+      <h2 id="h-menu">Right-click menu</h2>
+      <label class="row">
+        <span class="label">Add Download with Seamless to the menu</span>
+        <input class="sw" type="checkbox" data-key="contextMenu">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+    </section>
+
+    <section class="card edge group" aria-labelledby="h-add">
+      <h2 id="h-add">Adding</h2>
+      <label class="row">
+        <span class="label">Add without asking</span>
+        <input class="sw" type="checkbox" data-key="silentAdd">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+      <label class="row" id="startRow">
+        <span class="label">Start right away</span>
+        <input class="sw" type="checkbox" data-key="silentStart">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+      <p class="hint">Start right away only works when Add without asking is on.</p>
+    </section>
+
+    <section class="card edge group" aria-labelledby="h-hand">
+      <h2 id="h-hand">Hand-off of finished browser downloads</h2>
+      <label class="row">
+        <span class="label">Hand finished browser downloads to Seamless</span>
+        <input class="sw" type="checkbox" data-key="handoff">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+      <p class="hint">Downloads the browser has to do itself, like form posts and saved page data, are added to your Seamless list when they finish.</p>
+    </section>
+
+    <section class="card edge group" aria-labelledby="h-conn">
+      <h2 id="h-conn">Connection</h2>
+      <div class="row static"><span class="label">Status</span><span id="chip" class="chip">Checking</span></div>
+      <p id="statusNote" class="hint" role="status"></p>
+
+      <div class="block">
+        <label for="port">Port</label>
+        <div class="field edge"><input id="port" type="number" min="1024" max="65535" inputmode="numeric" placeholder="Automatic"></div>
+        <p id="portNote" class="hint">Leave empty to use the one Seamless reports.</p>
+      </div>
+
+      <div class="block">
+        <label for="key">Key</label>
+        <div class="field edge"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="Automatic"></div>
+        <p class="hint">Leave empty. Seamless hands the key over by itself.</p>
+      </div>
+
+      <div class="testline">
+        <button id="test" class="btn edge" type="button">Test</button>
+        <span id="result" class="result" role="status"></span>
+      </div>
+    </section>
+
+    <section class="card edge group" aria-labelledby="h-priv">
+      <h2 id="h-priv">Privacy</h2>
+      <label class="row">
+        <span class="label">Send cookies and sign-in details with downloads</span>
+        <input class="sw" type="checkbox" data-key="sendHeaders">
+        <span class="switch edge"><span class="knob"></span></span>
+      </label>
+      <p class="hint">Needed for sites that ask you to sign in. Turn it off on a shared or untrusted computer.</p>
+    </section>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

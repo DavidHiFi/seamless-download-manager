@@ -1,0 +1,15 @@
+body { width: 340px; padding: 12px; display: grid; gap: 12px; }
+
+.head { display: flex; align-items: center; gap: 12px; padding: 4px 4px 0; }
+.head img { border-radius: 8px; }
+.who { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.who h1 { font-size: 14px; font-weight: 600; white-space: nowrap; }
+
+.note { padding: 0 4px; }
+
+.list { display: grid; gap: 8px; }
+.item { padding: 12px 14px; }
+.item .label { font-size: 14px; }
+
+.foot { display: grid; }
+.foot .btn { width: 100%; }

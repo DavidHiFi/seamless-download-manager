@@ -1,0 +1,21 @@
+{
+    "type": "http",
+    "link": "https://example.com/files/big.bin",
+    "headers": null,
+    "username": null,
+    "password": null,
+    "downloadPage": null,
+    "userAgent": null,
+    "serverETag": "\"fake-etag\"",
+    "id": 2,
+    "folder": "D:\\Fixture Downloads",
+    "name": "big.bin",
+    "contentLength": 400,
+    "dateAdded": 1760000100000,
+    "startTime": 1760000101000,
+    "completeTime": null,
+    "status": "Paused",
+    "preferredConnectionCount": 4,
+    "speedLimit": 0,
+    "fileChecksum": null
+}

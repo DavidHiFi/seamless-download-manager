@@ -1,0 +1,23 @@
+{
+    "type": "http",
+    "link": "https://example.com/files/done.zip",
+    "headers": {
+        "Cookie": "fake-cookie=1"
+    },
+    "username": null,
+    "password": null,
+    "downloadPage": "https://example.com/page",
+    "userAgent": null,
+    "serverETag": null,
+    "id": 1,
+    "folder": "D:\\Fixture Downloads",
+    "name": "done.zip",
+    "contentLength": 2048,
+    "dateAdded": 1760000000000,
+    "startTime": 1760000001000,
+    "completeTime": 1760000009000,
+    "status": "Completed",
+    "preferredConnectionCount": null,
+    "speedLimit": 0,
+    "fileChecksum": null
+}

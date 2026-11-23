@@ -1,0 +1,449 @@
+import { Mocha, Glyph } from "theme.slint";
+
+// The 2px hover edge drawn over a box's resting edge, faded in so nothing jumps.
+export component HoverEdge inherits Rectangle {
+    in property <bool> lit;
+    border-width: 2px;
+    border-color: Mocha.hover-edge;
+    background: transparent;
+    opacity: lit ? 1 : 0;
+    animate opacity { duration: Mocha.fast; easing: ease-out; }
+}
+
+export component Card inherits Rectangle {
+    background: Mocha.card;
+    border-radius: Mocha.r-card;
+    border-width: 2px;
+    border-color: Mocha.edge;
+}
+
+export component Button inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> primary;
+    in property <bool> danger;
+    in property <bool> enabled: true;
+    in property <bool> compact;
+    in property <string> tip;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: text != "" ? text : tip;
+    min-height: 34px;
+    min-width: compact || text == "" ? 34px : 0;
+    horizontal-stretch: 0;
+    border-radius: Mocha.r-box;
+    border-width: 2px;
+    border-color: primary ? Mocha.blue.with-alpha(0.55) : Mocha.edge;
+    background: !enabled ? Mocha.surface0.with-alpha(0.30)
+        : ta.pressed ? Mocha.mauve.with-alpha(0.32)
+        : primary ? Mocha.blue.with-alpha(ta.has-hover ? 0.30 : 0.20)
+        : danger && ta.has-hover ? Mocha.red.with-alpha(0.16)
+        : ta.has-hover ? Mocha.surface0.with-alpha(0.70) : Mocha.surface0.with-alpha(0.38);
+    opacity: enabled ? 1 : 0.4;
+    animate background { duration: Mocha.fast; easing: ease-out; }
+
+    HoverEdge {
+        border-radius: root.border-radius;
+        lit: ta.has-hover && root.enabled;
+    }
+
+    HorizontalLayout {
+        padding-left: compact || text == "" ? 9px : 14px;
+        padding-right: compact || text == "" ? 9px : 14px;
+        spacing: 8px;
+        alignment: center;
+        if root.icon != "": Text {
+            text: root.icon;
+            // A fixed box: the icon font draws wider than it says, and a tight box cuts the glyph.
+            width: 18px;
+            font-size: 14px;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            color: root.danger ? Mocha.red : root.primary ? Mocha.blue : Mocha.subtext1;
+        }
+        if root.text != "" && !root.compact: Text {
+            text: root.text;
+            font-size: Mocha.fs-body;
+            vertical-alignment: center;
+            color: Mocha.text;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Switch inherits Rectangle {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+
+    accessible-role: checkbox;
+    accessible-checked: checked;
+    width: 42px;
+    height: 24px;
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: checked ? Mocha.blue : Mocha.edge;
+    background: ta.pressed ? Mocha.mauve.with-alpha(0.6) : checked ? Mocha.blue.with-alpha(0.85) : Mocha.surface0.with-alpha(0.6);
+    opacity: enabled ? 1 : 0.4;
+    animate background, border-color { duration: Mocha.fast; easing: ease-out; }
+
+    HoverEdge {
+        border-radius: root.border-radius;
+        lit: ta.has-hover && root.enabled && !root.checked;
+    }
+
+    Rectangle {
+        x: root.checked ? root.width - self.width - 5px : 5px;
+        y: (root.height - self.height) / 2;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: root.checked ? Mocha.base : Mocha.subtext0;
+        animate x { duration: Mocha.fast; easing: ease-out; }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+export component Field inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <bool> enabled: true;
+    in property <string> icon;
+    in property <bool> mono-digits;
+    in property <bool> secret;
+    out property <bool> focused: input.has-focus;
+    callback accepted(string);
+    callback edited(string);
+
+    public function take-focus() { input.focus(); }
+    public function select-all() { input.select-all(); }
+
+    min-height: 34px;
+    min-width: 80px;
+    horizontal-stretch: 1;
+    border-radius: Mocha.r-box;
+    border-width: 2px;
+    border-color: Mocha.edge;
+    background: Mocha.crust.with-alpha(0.40);
+    opacity: enabled ? 1 : 0.4;
+
+    hover := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { input.focus(); }
+    }
+
+    HoverEdge {
+        border-radius: root.border-radius;
+        lit: (hover.has-hover || input.has-focus) && root.enabled;
+    }
+
+    Rectangle {
+        x: 2px;
+        y: 2px;
+        width: parent.width - 4px;
+        height: parent.height - 4px;
+        border-radius: root.border-radius - 2px;
+        border-width: 1px;
+        border-color: Mocha.blue.with-alpha(0.75);
+        visible: input.has-focus;
+    }
+
+    HorizontalLayout {
+        padding-left: 11px;
+        padding-right: 11px;
+        spacing: 8px;
+        if root.icon != "": Text {
+            text: root.icon;
+            width: 16px;
+            color: Mocha.overlay0;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            font-size: 13px;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            // Long text scrolls inside the box and follows the cursor instead of spilling out.
+            clip: true;
+            Text {
+                x: 0;
+                width: parent.width;
+                height: parent.height;
+                text: root.placeholder;
+                color: Mocha.overlay0;
+                font-size: Mocha.fs-body;
+                vertical-alignment: center;
+                overflow: elide;
+                visible: root.text == "";
+            }
+            input := TextInput {
+                property <length> scroll-x;
+                x: min(0px, max(parent.width - self.width - 2px, self.scroll-x));
+                width: max(parent.width - 2px, self.preferred-width);
+                height: parent.height;
+                cursor-position-changed(pos) => {
+                    if pos.x + self.scroll-x < 0px {
+                        self.scroll-x = -pos.x;
+                    } else if pos.x + self.scroll-x > parent.width - 4px {
+                        self.scroll-x = parent.width - 4px - pos.x;
+                    }
+                }
+                text <=> root.text;
+                enabled: root.enabled;
+                single-line: true;
+                input-type: root.secret ? InputType.password : InputType.text;
+                color: Mocha.text;
+                font-size: Mocha.fs-body;
+                vertical-alignment: center;
+                selection-background-color: Mocha.blue.with-alpha(0.35);
+                selection-foreground-color: Mocha.text;
+                accepted => { root.accepted(self.text); }
+                edited => { root.edited(self.text); }
+            }
+        }
+    }
+}
+
+export component MenuRow inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> danger;
+    in property <bool> enabled: true;
+    in property <bool> current;
+    callback clicked();
+
+    height: 32px;
+    border-radius: 6px;
+    background: !enabled ? transparent : ta.pressed ? Mocha.mauve.with-alpha(0.25) : ta.has-hover || current ? Mocha.surface0 : transparent;
+    opacity: enabled ? 1 : 0.4;
+    animate background { duration: 120ms; easing: ease-out; }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 10px;
+        Text {
+            text: root.icon;
+            width: 16px;
+            font-size: 13px;
+            color: root.danger ? Mocha.red : Mocha.blue;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.text;
+            font-size: Mocha.fs-row;
+            color: root.danger ? Mocha.red : Mocha.text;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+}
+
+
+// Pop-ups cannot blur inside the window, so they are opaque Mocha (the glass rule).
+export component MenuPanel inherits Rectangle {
+    background: Mocha.popup;
+    border-radius: Mocha.r-popup;
+    border-width: 2px;
+    border-color: Mocha.edge;
+    drop-shadow-blur: 18px;
+    drop-shadow-offset-y: 6px;
+    drop-shadow-color: #00000090;
+}
+
+export component Dropdown inherits Rectangle {
+    in property <[string]> options;
+    in-out property <int> current;
+    in property <bool> enabled: true;
+    callback selected(int);
+
+    accessible-role: combobox;
+    accessible-value: options[current];
+    min-height: 34px;
+    min-width: 150px;
+    horizontal-stretch: 0;
+    border-radius: Mocha.r-box;
+    border-width: 2px;
+    border-color: Mocha.edge;
+    background: ta.pressed ? Mocha.mauve.with-alpha(0.25) : ta.has-hover ? Mocha.surface0.with-alpha(0.70) : Mocha.surface0.with-alpha(0.38);
+    opacity: enabled ? 1 : 0.4;
+    animate background { duration: Mocha.fast; easing: ease-out; }
+
+    HoverEdge {
+        border-radius: root.border-radius;
+        lit: ta.has-hover && root.enabled;
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 10px;
+        spacing: 8px;
+        Text {
+            text: root.options[root.current];
+            color: Mocha.text;
+            font-size: Mocha.fs-body;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        Text {
+            text: Glyph.chevron;
+            color: Mocha.overlay0;
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { popup.show(); }
+    }
+
+    popup := PopupWindow {
+        x: 0;
+        y: root.height + 4px;
+        width: max(root.width, 180px);
+        MenuPanel {
+            VerticalLayout {
+                padding: 5px;
+                spacing: 2px;
+                for opt[i] in root.options: MenuRow {
+                    text: opt;
+                    icon: i == root.current ? "\u{f00c}" : "";
+                    current: i == root.current;
+                    clicked => {
+                        root.current = i;
+                        root.selected(i);
+                        popup.close();
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component Bar inherits Rectangle {
+    in property <float> progress;
+    in property <bool> paused;
+    height: 4px;
+    border-radius: 2px;
+    background: Mocha.surface0.with-alpha(0.8);
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.progress, 0, 1);
+        height: parent.height;
+        border-radius: parent.border-radius;
+        background: root.paused ? Mocha.overlay0 : @linear-gradient(90deg, #89b4fa 0%, #cba6f7 100%);
+        animate width { duration: 400ms; easing: ease-out; }
+    }
+}
+
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <color> tone: Mocha.subtext0;
+    height: 22px;
+    border-radius: 11px;
+    border-width: 2px;
+    border-color: tone.with-alpha(0.45);
+    background: tone.with-alpha(0.12);
+    HorizontalLayout {
+        padding-left: 9px;
+        padding-right: 9px;
+        Text {
+            text: root.text;
+            color: root.tone;
+            font-size: Mocha.fs-small;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Thin scroll thumb for a Flickable: bind viewport-y both ways.
+export component ScrollThumb inherits Rectangle {
+    in-out property <length> viewport-y;
+    in property <length> viewport-height;
+    in property <length> visible-height;
+    property <length> range: max(0px, viewport-height - visible-height);
+    property <length> thumb-h: max(36px, visible-height * min(1, visible-height / max(1px, viewport-height)));
+    property <length> start;
+
+    width: 10px;
+    visible: range > 0px;
+
+    thumb := Rectangle {
+        x: 2px;
+        width: ta.has-hover || ta.pressed ? 7px : 5px;
+        height: root.thumb-h;
+        y: root.range > 0 ? (-root.viewport-y / root.range) * (root.height - root.thumb-h) : 0;
+        border-radius: 4px;
+        background: ta.pressed ? Mocha.mauve : ta.has-hover ? Mocha.blue : Mocha.surface2.with-alpha(0.8);
+        animate background, width { duration: Mocha.fast; easing: ease-out; }
+
+        ta := TouchArea {
+            mouse-cursor: default;
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down {
+                    root.start = -root.viewport-y;
+                }
+            }
+            moved => {
+                if self.pressed && root.height > root.thumb-h {
+                    root.viewport-y = -clamp(root.start + (self.mouse-y - self.pressed-y) * root.range / (root.height - root.thumb-h), 0px, root.range);
+                }
+            }
+        }
+    }
+}
+
+export component SettingRow inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> hint;
+    spacing: 16px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        alignment: center;
+        spacing: 2px;
+        Text {
+            text: root.title;
+            color: Mocha.text;
+            font-size: Mocha.fs-row;
+            wrap: word-wrap;
+        }
+        if root.hint != "": Text {
+            text: root.hint;
+            color: Mocha.subtext0;
+            font-size: Mocha.fs-small;
+            wrap: word-wrap;
+        }
+    }
+    @children
+}
+
+export component SectionTitle inherits Text {
+    color: Mocha.subtext0;
+    font-size: Mocha.fs-small;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+}

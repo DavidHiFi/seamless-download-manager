@@ -1,0 +1,21 @@
+[package]
+name = "sdm-setup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "seamless-download-manager-setup"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+slint = { version = "1.19", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-femtovg", "renderer-software", "raw-window-handle-06"] }
+raw-window-handle = "0.6"
+windows = { workspace = true, features = ["Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_UI_Shell_Common", "Win32_UI_Shell_PropertiesSystem", "Win32_System_Variant"] }
+
+[build-dependencies]
+slint-build = "1.19"
+embed-resource = "3"

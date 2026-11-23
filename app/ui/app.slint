@@ -1,0 +1,1694 @@
+import "../assets/fonts/FiraCodeNerdFont-Regular.ttf";
+import "../assets/fonts/FiraCodeNerdFont-SemiBold.ttf";
+import { AboutSlint } from "std-widgets.slint";
+import { Mocha, Glyph } from "theme.slint";
+import { Button, Card, Switch, Field, Dropdown, Bar, Chip, ScrollThumb, SettingRow, SectionTitle, MenuPanel, MenuRow, HoverEdge } from "widgets.slint";
+
+export { Mocha }
+
+export struct Row {
+    id: int,
+    name: string,
+    icon: string,
+    size: string,
+    status: string,
+    tone: int,
+    progress: float,
+    show-progress: bool,
+    speed: string,
+    eta: string,
+    added: string,
+    selected: bool,
+    running: bool,
+    finished: bool,
+    error: string,
+}
+
+export struct NavEntry {
+    key: string,
+    label: string,
+    icon: string,
+    count: string,
+    busy: bool,
+}
+
+export struct QueueView {
+    id: int,
+    name: string,
+    max: string,
+    running: bool,
+    count: int,
+    days: [bool],
+    start-on: bool,
+    start: string,
+    end-on: bool,
+    end: string,
+    stop-empty: bool,
+    removable: bool,
+    power: int,
+}
+
+export struct SiteView {
+    host: string,
+    summary: string,
+}
+
+export global Ui {
+    in property <[Row]> rows;
+    in property <[NavEntry]> views;
+    in property <[NavEntry]> types;
+    in property <[NavEntry]> queues-nav;
+    in property <[QueueView]> queues;
+    in property <[string]> queue-names;
+    in-out property <string> filter: "all";
+    in-out property <string> page: "list";
+    in-out property <string> search;
+    in property <int> selected-count;
+    in property <bool> any-running-selected;
+    in property <bool> any-paused-selected;
+    in property <bool> selected-finished;
+    in property <string> total-speed;
+    in property <string> running-text;
+    in property <bool> api-up;
+    in property <string> api-text;
+    in property <string> toast;
+    in property <int> toast-tone;
+    in property <string> version;
+    in property <float> tint: 0.38;
+    in property <string> empty-title;
+    in property <string> empty-hint;
+    in property <bool> filter-is-queue;
+    in property <bool> filter-queue-running;
+
+    callback set-filter(string);
+    callback set-page(string);
+    callback search-edited(string);
+    callback row-clicked(int, bool, bool);
+    callback row-double-clicked(int);
+    callback row-menu(int);
+    callback select-all();
+    callback action(string);
+    callback move-to-queue(int);
+    callback queue-save(int, string, string, [bool], bool, string, bool, string, bool, int);
+    callback queue-toggle(int);
+    callback queue-delete(int);
+    callback queue-new();
+    callback open-url(string);
+    callback confirm-remove(bool);
+}
+
+export global Prefs {
+    in-out property <string> folder;
+    in-out property <string> threads;
+    in-out property <string> max-at-once;
+    in-out property <string> retries;
+    in-out property <bool> limit-on;
+    in-out property <string> limit-kb;
+    in-out property <bool> use-temp;
+    in-out property <bool> sparse;
+    in-out property <bool> server-time;
+    in-out property <bool> delete-partial;
+    in-out property <bool> use-categories;
+    in-out property <bool> dynamic-parts;
+    in-out property <bool> decimal-units;
+    in-out property <string> port;
+    in-out property <bool> autostart;
+    in-out property <bool> tray;
+    in-out property <bool> start-hidden;
+    in-out property <float> tint;
+    in property <string> import-status;
+    in property <bool> importing;
+    callback changed();
+    callback save();
+    callback reset();
+    callback browse-folder();
+    callback import-abdm();
+    callback copy-key();
+    in-out property <bool> dirty;
+    // Name lookup: 0 Windows, 1 Cloudflare, 2 Google, 3 Quad9, 4 a custom address.
+    in-out property <int> dns-choice;
+    in-out property <string> dns-url;
+    in-out property <bool> sound-on;
+    in-out property <string> sound-done;
+    in-out property <string> sound-fail;
+    in-out property <string> sound-done-name;
+    in-out property <string> sound-fail-name;
+    callback choose-sound(bool);
+    callback clear-sound(bool);
+}
+
+// The minute before the computer sleeps or shuts down after a queue.
+export global PowerBox {
+    in-out property <bool> open;
+    in property <string> title;
+    in property <string> what;
+    in property <string> button;
+    in property <int> seconds;
+    in property <int> total: 60;
+    callback cancel();
+    callback now();
+}
+
+export global Update {
+    in property <string> status: "Not checked yet.";
+    // 0 plain, 1 up to date, 2 a new version, 4 could not check.
+    in property <int> tone;
+    in property <bool> checking;
+    in property <bool> has-update;
+    in property <string> url;
+    callback check();
+}
+
+// Checking a finished file against the value a site lists.
+export global SumBox {
+    in-out property <bool> open;
+    in property <string> file;
+    in property <[string]> kinds;
+    in-out property <int> kind;
+    in-out property <string> expected;
+    in property <string> result;
+    in property <string> verdict;
+    in property <int> tone;
+    in property <bool> busy;
+    callback kind-picked(int);
+    callback expected-edited(string);
+    callback copy();
+}
+
+// Many links from one pattern, like file-*.zip from 1 to 20.
+export global BatchBox {
+    in-out property <bool> open;
+    in-out property <string> pattern;
+    in-out property <string> start;
+    in-out property <string> end;
+    // 0 match the last number, 1 none, 2 a fixed width.
+    in-out property <int> padding;
+    in-out property <string> width;
+    in-out property <string> folder;
+    in-out property <int> queue-index;
+    in property <string> count;
+    in property <string> first;
+    in property <string> last;
+    in property <string> error;
+    in property <bool> can-add;
+    callback changed();
+    callback browse();
+    callback add(bool);
+}
+
+export global Sites {
+    in property <[SiteView]> rules;
+    callback add();
+    callback edit(int);
+    callback delete(int);
+}
+
+export global SiteBox {
+    in-out property <bool> open;
+    in property <bool> is-new;
+    in-out property <string> host;
+    in-out property <string> user;
+    in-out property <string> pass;
+    in-out property <string> agent;
+    in-out property <string> threads;
+    in-out property <string> kb;
+    in property <string> error;
+    callback save();
+}
+
+export global AddBox {
+    in-out property <bool> open;
+    in-out property <string> url;
+    in-out property <string> name;
+    in-out property <string> folder;
+    in-out property <int> queue-index;
+    in property <string> info;
+    in property <int> info-tone;
+    in property <bool> checking;
+    in property <bool> can-add;
+    in-out property <bool> auth-on;
+    in-out property <string> user;
+    in-out property <string> pass;
+    callback url-edited(string);
+    callback browse();
+    callback add(bool);
+    callback cancel();
+}
+
+export global Confirm {
+    in-out property <bool> open;
+    in property <string> title;
+    in property <string> body;
+    in-out property <bool> delete-files;
+}
+
+// One download's own speed limit, set from the row menu.
+export global Limit {
+    in-out property <bool> open;
+    in property <string> title;
+    in-out property <bool> on;
+    in-out property <string> kb;
+    in property <string> error;
+    callback save();
+}
+
+component NavItem inherits Rectangle {
+    in property <NavEntry> entry;
+    in property <bool> current;
+    callback clicked();
+
+    height: 34px;
+    border-radius: Mocha.r-box;
+    background: ta.pressed ? Mocha.mauve.with-alpha(0.22) : current ? Mocha.blue.with-alpha(0.16) : ta.has-hover ? Mocha.surface0.with-alpha(0.55) : transparent;
+    border-width: 2px;
+    border-color: current ? Mocha.blue.with-alpha(0.45) : transparent;
+    animate background, border-color { duration: Mocha.fast; easing: ease-out; }
+    accessible-role: tab;
+    accessible-label: entry.label;
+
+    HoverEdge {
+        border-radius: root.border-radius;
+        lit: ta.has-hover && !root.current;
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        Text {
+            text: root.entry.icon;
+            width: 16px;
+            color: root.current ? Mocha.blue : Mocha.subtext0;
+            font-size: 13px;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.entry.label;
+            color: root.current ? Mocha.text : Mocha.subtext1;
+            font-size: Mocha.fs-row;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        if root.entry.busy: Rectangle {
+            width: 7px;
+            height: 7px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 4px;
+            background: Mocha.green;
+        }
+        Text {
+            text: root.entry.count;
+            color: Mocha.overlay0;
+            font-size: Mocha.fs-small;
+            vertical-alignment: center;
+        }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component Sidebar inherits Rectangle {
+    background: Mocha.dock;
+    border-radius: Mocha.r-card;
+    border-width: 2px;
+    border-color: Mocha.edge;
+
+    flick := Flickable {
+        x: 2px;
+        y: 2px;
+        width: parent.width - 4px;
+        height: parent.height - 4px;
+        VerticalLayout {
+            padding: 10px;
+            spacing: 3px;
+            alignment: start;
+            SectionTitle { text: "DOWNLOADS"; height: 26px; vertical-alignment: center; }
+            for v in Ui.views: NavItem {
+                entry: v;
+                current: Ui.page == "list" && Ui.filter == v.key;
+                clicked => { Ui.set-filter(v.key); }
+            }
+            Rectangle { height: 10px; }
+            SectionTitle { text: "FILE TYPES"; height: 26px; vertical-alignment: center; }
+            for v in Ui.types: NavItem {
+                entry: v;
+                current: Ui.page == "list" && Ui.filter == v.key;
+                clicked => { Ui.set-filter(v.key); }
+            }
+            Rectangle { height: 10px; }
+            SectionTitle { text: "QUEUES"; height: 26px; vertical-alignment: center; }
+            for v in Ui.queues-nav: NavItem {
+                entry: v;
+                current: Ui.page == "list" && Ui.filter == v.key;
+                clicked => { Ui.set-filter(v.key); }
+            }
+            Rectangle { height: 10px; }
+            Rectangle { height: 1px; background: Mocha.surface0; }
+            Rectangle { height: 6px; }
+            NavItem {
+                entry: { key: "queues", label: "Manage queues", icon: Glyph.clock, count: "" };
+                current: Ui.page == "queues";
+                clicked => { Ui.set-page("queues"); }
+            }
+            NavItem {
+                entry: { key: "settings", label: "Settings", icon: Glyph.cog, count: "" };
+                current: Ui.page == "settings";
+                clicked => { Ui.set-page("settings"); }
+            }
+            NavItem {
+                entry: { key: "about", label: "About", icon: Glyph.info, count: "" };
+                current: Ui.page == "about";
+                clicked => { Ui.set-page("about"); }
+            }
+        }
+    }
+}
+
+component ListHeader inherits Rectangle {
+    in property <bool> show-size;
+    in property <bool> show-speed;
+    in property <bool> show-eta;
+    in property <bool> show-added;
+    height: 32px;
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 20px;
+        spacing: 12px;
+        Text { text: "Name"; horizontal-stretch: 1; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; }
+        if root.show-size: Text { text: "Size"; width: 96px; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; horizontal-alignment: right; }
+        Text { text: "Status"; width: 132px; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; }
+        if root.show-speed: Text { text: "Speed"; width: 92px; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; horizontal-alignment: right; }
+        if root.show-eta: Text { text: "Time left"; width: 82px; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; horizontal-alignment: right; }
+        if root.show-added: Text { text: "Added"; width: 108px; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; horizontal-alignment: right; }
+    }
+}
+
+component DownloadRow inherits Rectangle {
+    in property <Row> item;
+    in property <int> index;
+    in property <bool> show-size;
+    in property <bool> show-speed;
+    in property <bool> show-eta;
+    in property <bool> show-added;
+    callback menu(length, length);
+
+    height: 52px;
+    border-radius: 10px;
+    background: ta.pressed ? Mocha.mauve.with-alpha(0.16) : item.selected ? Mocha.blue.with-alpha(0.15) : ta.has-hover ? Mocha.surface0.with-alpha(0.45) : transparent;
+    border-width: 2px;
+    border-color: item.selected ? Mocha.blue.with-alpha(0.55) : transparent;
+    animate background { duration: 120ms; easing: ease-out; }
+    accessible-role: list-item;
+    accessible-label: item.name + ", " + item.status;
+
+    HoverEdge {
+        border-radius: root.border-radius;
+        lit: ta.has-hover && !root.item.selected;
+    }
+
+    property <color> tone-color: item.tone == 1 ? Mocha.green : item.tone == 2 ? Mocha.blue : item.tone == 3 ? Mocha.peach : item.tone == 4 ? Mocha.red : item.tone == 5 ? Mocha.yellow : Mocha.subtext0;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+        Text {
+            text: root.item.icon;
+            width: 18px;
+            color: root.item.finished ? Mocha.subtext0 : Mocha.blue;
+            font-size: 15px;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 6px;
+            Text {
+                text: root.item.name;
+                color: Mocha.text;
+                font-size: Mocha.fs-row;
+                overflow: elide;
+            }
+            if root.item.show-progress: Bar {
+                progress: root.item.progress;
+                paused: !root.item.running;
+            }
+        }
+        if root.show-size: Text { text: root.item.size; width: 96px; color: Mocha.subtext1; font-size: Mocha.fs-body; vertical-alignment: center; horizontal-alignment: right; overflow: elide; }
+        Text {
+            text: root.item.status;
+            width: 132px;
+            color: root.tone-color;
+            font-size: Mocha.fs-body;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        if root.show-speed: Text { text: root.item.speed; width: 92px; color: Mocha.subtext1; font-size: Mocha.fs-body; vertical-alignment: center; horizontal-alignment: right; }
+        if root.show-eta: Text { text: root.item.eta; width: 82px; color: Mocha.subtext1; font-size: Mocha.fs-body; vertical-alignment: center; horizontal-alignment: right; }
+        if root.show-added: Text { text: root.item.added; width: 108px; color: Mocha.subtext0; font-size: Mocha.fs-body; vertical-alignment: center; horizontal-alignment: right; overflow: elide; }
+    }
+
+    ta := TouchArea {
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                Ui.row-clicked(root.index, event.modifiers.control, event.modifiers.shift);
+            }
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.right {
+                if !root.item.selected {
+                    Ui.row-clicked(root.index, false, false);
+                }
+                root.menu(self.mouse-x, self.mouse-y);
+            }
+        }
+        double-clicked => { Ui.row-double-clicked(root.index); }
+    }
+}
+
+component Toolbar inherits Rectangle {
+    in property <bool> compact;
+    in property <bool> narrow;
+    height: 56px;
+    background: Mocha.dock;
+    border-radius: Mocha.r-card;
+    border-width: 2px;
+    border-color: Mocha.edge;
+
+    HorizontalLayout {
+        padding: 9px;
+        padding-left: 11px;
+        spacing: 8px;
+        Button {
+            text: "Add link";
+            icon: Glyph.plus;
+            primary: true;
+            compact: root.narrow;
+            tip: "Add link";
+            clicked => { Ui.action("add"); }
+        }
+        if !root.narrow: Button {
+            text: "Add many";
+            icon: Glyph.list-ol;
+            compact: root.compact;
+            tip: "Add many links from one pattern";
+            clicked => { Ui.action("batch"); }
+        }
+        Button {
+            text: "Resume";
+            icon: Glyph.play;
+            compact: root.compact;
+            tip: "Resume";
+            enabled: Ui.any-paused-selected;
+            clicked => { Ui.action("resume"); }
+        }
+        Button {
+            text: "Pause";
+            icon: Glyph.pause;
+            compact: root.compact;
+            tip: "Pause";
+            enabled: Ui.any-running-selected;
+            clicked => { Ui.action("pause"); }
+        }
+        Button {
+            text: "Remove";
+            icon: Glyph.trash;
+            danger: true;
+            compact: root.compact;
+            tip: "Remove";
+            enabled: Ui.selected-count > 0;
+            clicked => { Ui.action("remove"); }
+        }
+        if !root.narrow: Rectangle { width: 1px; background: Mocha.surface1.with-alpha(0.7); }
+        if !root.narrow && Ui.filter-is-queue: Button {
+            text: Ui.filter-queue-running ? "Stop queue" : "Start queue";
+            icon: Ui.filter-queue-running ? Glyph.stop : Glyph.play;
+            compact: root.compact;
+            tip: self.text;
+            clicked => { Ui.action("toggle-queue"); }
+        }
+        if !root.narrow: Button {
+            text: "Pause all";
+            icon: Glyph.stop;
+            compact: root.compact;
+            tip: "Pause all";
+            clicked => { Ui.action("pause-all"); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        Field {
+            icon: Glyph.search;
+            placeholder: "Search";
+            text <=> Ui.search;
+            max-width: 260px;
+            min-width: 90px;
+            edited(t) => { Ui.search-edited(t); }
+        }
+    }
+}
+
+component RowMenu inherits PopupWindow {
+    width: 230px;
+    MenuPanel {
+        VerticalLayout {
+            padding: 5px;
+            spacing: 2px;
+            MenuRow { text: "Open"; icon: Glyph.file; enabled: Ui.selected-finished; clicked => { Ui.action("open"); } }
+            MenuRow { text: "Show in folder"; icon: Glyph.folder-open; clicked => { Ui.action("folder"); } }
+            MenuRow { text: "Check file"; icon: Glyph.shield; enabled: Ui.selected-finished && Ui.selected-count == 1; clicked => { Ui.action("check-file"); } }
+            Rectangle { height: 1px; background: Mocha.surface0; }
+            MenuRow { text: "Resume"; icon: Glyph.play; enabled: Ui.any-paused-selected; clicked => { Ui.action("resume"); } }
+            MenuRow { text: "Pause"; icon: Glyph.pause; enabled: Ui.any-running-selected; clicked => { Ui.action("pause"); } }
+            MenuRow { text: "Copy link"; icon: Glyph.link; clicked => { Ui.action("copy-link"); } }
+            MenuRow { text: "Speed limit"; icon: Glyph.gauge; enabled: Ui.selected-count == 1 && !Ui.selected-finished; clicked => { Ui.action("speed-limit"); } }
+            if Ui.filter-is-queue: MenuRow { text: "Move up in queue"; icon: Glyph.up; clicked => { Ui.action("queue-up"); } }
+            if Ui.filter-is-queue: MenuRow { text: "Move down in queue"; icon: Glyph.down; clicked => { Ui.action("queue-down"); } }
+            Rectangle { height: 1px; background: Mocha.surface0; }
+            HorizontalLayout { padding-left: 12px; height: 24px; Text { text: "Add to queue"; color: Mocha.overlay0; font-size: Mocha.fs-small; vertical-alignment: center; } }
+            for q[i] in Ui.queue-names: MenuRow { text: q; icon: Glyph.queue; clicked => { Ui.move-to-queue(i); } }
+            Rectangle { height: 1px; background: Mocha.surface0; }
+            MenuRow { text: "Remove"; icon: Glyph.trash; danger: true; clicked => { Ui.action("remove"); } }
+        }
+    }
+}
+
+component ListPage inherits Rectangle {
+    in property <bool> show-size;
+    in property <bool> show-speed;
+    in property <bool> show-eta;
+    in property <bool> show-added;
+    property <length> menu-x;
+    property <length> menu-y;
+
+    background: Mocha.card;
+    border-radius: Mocha.r-card;
+    border-width: 2px;
+    border-color: Mocha.edge;
+    clip: true;
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Delete {
+                Ui.action("remove");
+                return accept;
+            }
+            if event.modifiers.control && (event.text == "a" || event.text == "A") {
+                Ui.select-all();
+                return accept;
+            }
+            if event.modifiers.control && (event.text == "v" || event.text == "V") {
+                Ui.action("paste");
+                return accept;
+            }
+            if event.modifiers.control && (event.text == "n" || event.text == "N") {
+                Ui.action("add");
+                return accept;
+            }
+            if event.text == Key.Return {
+                Ui.action("open");
+                return accept;
+            }
+            if event.text == " " {
+                Ui.action("toggle");
+                return accept;
+            }
+            reject
+        }
+    }
+
+    VerticalLayout {
+        padding: 2px;
+        ListHeader {
+            show-size: root.show-size;
+            show-speed: root.show-speed;
+            show-eta: root.show-eta;
+            show-added: root.show-added;
+        }
+        Rectangle { height: 1px; background: Mocha.surface0.with-alpha(0.8); }
+        Rectangle {
+            vertical-stretch: 1;
+            flick := Flickable {
+                x: 0;
+                width: parent.width - 12px;
+                height: parent.height;
+                content-height: Ui.rows.length * 54px + 12px;
+                for r[i] in Ui.rows: DownloadRow {
+                    x: 6px;
+                    y: 6px + i * 54px;
+                    width: flick.width - 6px;
+                    item: r;
+                    index: i;
+                    show-size: root.show-size;
+                    show-speed: root.show-speed;
+                    show-eta: root.show-eta;
+                    show-added: root.show-added;
+                    menu(mx, my) => {
+                        keys.focus();
+                        Ui.row-menu(i);
+                        root.menu-x = self.x + mx + flick.content-x;
+                        root.menu-y = self.y + my + flick.content-y + 35px;
+                        menu.show();
+                    }
+                }
+            }
+            ScrollThumb {
+                x: parent.width - self.width - 2px;
+                y: 6px;
+                height: parent.height - 12px;
+                viewport-y <=> flick.content-y;
+                viewport-height: flick.content-height;
+                visible-height: flick.height;
+            }
+            if Ui.rows.length == 0: VerticalLayout {
+                alignment: center;
+                spacing: 8px;
+                padding: 24px;
+                Text { text: Glyph.download; font-size: 30px; color: Mocha.surface2; horizontal-alignment: center; }
+                Text { text: Ui.empty-title; font-size: 16px; color: Mocha.text; horizontal-alignment: center; wrap: word-wrap; }
+                Text { text: Ui.empty-hint; font-size: Mocha.fs-body; color: Mocha.subtext0; horizontal-alignment: center; wrap: word-wrap; }
+            }
+        }
+    }
+
+    menu := RowMenu {
+        x: min(root.menu-x, root.width - 236px);
+        y: min(root.menu-y, max(0px, root.height - 420px));
+    }
+
+    public function focus-list() { keys.focus(); }
+}
+
+component PageScroll inherits Rectangle {
+    in property <length> content-height;
+    flick := Flickable {
+        width: parent.width - 12px;
+        height: parent.height;
+        content-height: max(root.content-height, self.height);
+        @children
+    }
+    ScrollThumb {
+        x: parent.width - self.width - 1px;
+        y: 4px;
+        height: parent.height - 8px;
+        viewport-y <=> flick.content-y;
+        viewport-height: flick.content-height;
+        visible-height: flick.height;
+    }
+}
+
+component NumberField inherits Field {
+    max-width: 110px;
+    horizontal-stretch: 0;
+    edited => { Prefs.changed(); }
+}
+
+component SettingsPage inherits Rectangle {
+    property <length> page-width: min(self.width - 24px, 720px);
+
+    PageScroll {
+        content-height: body.preferred-height + 40px;
+        body := VerticalLayout {
+            x: (root.width - root.page-width) / 2;
+            width: root.page-width;
+            // Keep its own height, so short pages do not stretch their rows to fill the window.
+            height: self.preferred-height;
+            y: 0px;
+            padding-top: 6px;
+            padding-bottom: 30px;
+            spacing: 14px;
+
+            Text { text: "Settings"; font-size: Mocha.fs-title; color: Mocha.text; font-weight: 600; }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "DOWNLOADS"; }
+                    SettingRow {
+                        title: "Save files to";
+                        hint: Prefs.folder;
+                        Button { text: "Choose folder"; icon: Glyph.folder; clicked => { Prefs.browse-folder(); } }
+                    }
+                    SettingRow {
+                        title: "Connections per download";
+                        hint: "More connections can be faster. 8 suits most sites.";
+                        NumberField { text <=> Prefs.threads; }
+                    }
+                    SettingRow {
+                        title: "Downloads at the same time";
+                        hint: "0 means no limit.";
+                        NumberField { text <=> Prefs.max-at-once; }
+                    }
+                    SettingRow {
+                        title: "Tries before giving up";
+                        hint: "Each try waits longer than the last.";
+                        NumberField { text <=> Prefs.retries; }
+                    }
+                    SettingRow {
+                        title: "Split big parts while downloading";
+                        hint: "Keeps every connection busy near the end.";
+                        Switch { checked <=> Prefs.dynamic-parts; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Sort into folders by file type";
+                        hint: "Uses the folder set for each file type.";
+                        Switch { checked <=> Prefs.use-categories; toggled => { Prefs.changed(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "SPEED"; }
+                    SettingRow {
+                        title: "Limit total speed";
+                        hint: "Leaves room for games and calls.";
+                        Switch { checked <=> Prefs.limit-on; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Speed limit in KB per second";
+                        hint: "";
+                        NumberField { text <=> Prefs.limit-kb; enabled: Prefs.limit-on; }
+                    }
+                    SettingRow {
+                        title: "Show sizes in thousands (KB, MB)";
+                        hint: "Off shows 1024-based units.";
+                        Switch { checked <=> Prefs.decimal-units; toggled => { Prefs.changed(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "FILES"; }
+                    SettingRow {
+                        title: "Mark unfinished files";
+                        hint: "Unfinished files end in .sdm-part until they are done.";
+                        Switch { checked <=> Prefs.use-temp; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Reserve space quickly";
+                        hint: "Big files start at once instead of filling the disk first.";
+                        Switch { checked <=> Prefs.sparse; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Keep the server's file date";
+                        hint: "";
+                        Switch { checked <=> Prefs.server-time; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Delete unfinished files on remove";
+                        hint: "";
+                        Switch { checked <=> Prefs.delete-partial; toggled => { Prefs.changed(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "BROWSER"; }
+                    SettingRow {
+                        title: Ui.api-up ? "Browsers can send downloads here" : "The browser link is off";
+                        hint: Ui.api-text;
+                        Chip { text: Ui.api-up ? "Connected" : "Off"; tone: Ui.api-up ? Mocha.green : Mocha.red; y: (parent.height - self.height) / 2; }
+                    }
+                    SettingRow {
+                        title: "Port";
+                        hint: "The extension finds it by itself.";
+                        NumberField { text <=> Prefs.port; }
+                    }
+                    SettingRow {
+                        title: "Browser key";
+                        hint: "The extension gets it by itself. Copy it only to set it up by hand.";
+                        Button { text: "Copy key"; icon: Glyph.copy; clicked => { Prefs.copy-key(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "WINDOW"; }
+                    SettingRow {
+                        title: "Start with Windows";
+                        hint: "Starts quietly in the tray.";
+                        Switch { checked <=> Prefs.autostart; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Closing the window keeps it in the tray";
+                        hint: "Downloads keep going.";
+                        Switch { checked <=> Prefs.tray; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "Open hidden in the tray";
+                        hint: "";
+                        Switch { checked <=> Prefs.start-hidden; toggled => { Prefs.changed(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "NAME LOOKUP"; }
+                    SettingRow {
+                        title: "Find sites with";
+                        hint: Prefs.dns-choice == 0 ? "The same lookup the rest of Windows uses." : Prefs.dns-choice == 4 ? "Any lookup address that starts with https://." : "A private lookup over https, so the network cannot change the answer.";
+                        Dropdown {
+                            options: ["Windows", "Cloudflare", "Google", "Quad9", "Custom address"];
+                            current <=> Prefs.dns-choice;
+                            selected => { Prefs.changed(); }
+                        }
+                    }
+                    if Prefs.dns-choice == 4: SettingRow {
+                        title: "Lookup address";
+                        Field { text <=> Prefs.dns-url; placeholder: "https://"; icon: Glyph.globe; max-width: 320px; edited => { Prefs.changed(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "SOUNDS"; }
+                    SettingRow {
+                        title: "Play a sound when a download ends";
+                        hint: "One sound every two seconds at most, so big batches stay quiet.";
+                        Switch { checked <=> Prefs.sound-on; toggled => { Prefs.changed(); } }
+                    }
+                    SettingRow {
+                        title: "When it finishes";
+                        hint: Prefs.sound-done-name;
+                        if Prefs.sound-done != "": Button { text: "Use Windows sound"; enabled: Prefs.sound-on; clicked => { Prefs.clear-sound(true); } }
+                        Button { text: "Choose"; icon: Glyph.bell; enabled: Prefs.sound-on; clicked => { Prefs.choose-sound(true); } }
+                    }
+                    SettingRow {
+                        title: "When it fails";
+                        hint: Prefs.sound-fail-name;
+                        if Prefs.sound-fail != "": Button { text: "Use Windows sound"; enabled: Prefs.sound-on; clicked => { Prefs.clear-sound(false); } }
+                        Button { text: "Choose"; icon: Glyph.bell; enabled: Prefs.sound-on; clicked => { Prefs.choose-sound(false); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "SITES"; }
+                    Text {
+                        text: "A sign-in, browser name, connections or speed limit for one site. A * matches any part, and when two rules fit, the one with fewer * wins. Saved straight away.";
+                        wrap: word-wrap;
+                        color: Mocha.subtext0;
+                        font-size: Mocha.fs-small;
+                    }
+                    for r[i] in Sites.rules: SettingRow {
+                        title: r.host;
+                        hint: r.summary;
+                        Button { text: "Edit"; icon: Glyph.edit; compact: true; tip: "Edit " + r.host; clicked => { Sites.edit(i); } }
+                        Button { text: "Delete"; icon: Glyph.trash; danger: true; compact: true; tip: "Delete " + r.host; clicked => { Sites.delete(i); } }
+                    }
+                    if Sites.rules.length == 0: Text { text: "No site rules yet."; color: Mocha.overlay1; font-size: Mocha.fs-body; }
+                    HorizontalLayout {
+                        alignment: start;
+                        padding-top: 4px;
+                        Button { text: "Add a site"; icon: Glyph.plus; clicked => { Sites.add(); } }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 6px;
+                    SectionTitle { text: "AB DOWNLOAD MANAGER"; }
+                    SettingRow {
+                        title: "Bring over downloads, queues and settings";
+                        hint: Prefs.import-status != "" ? Prefs.import-status : "Copies the list, queues, file types and settings. AB Download Manager is left as it is.";
+                        Button { text: Prefs.importing ? "Copying" : "Copy from AB"; icon: Glyph.import; enabled: !Prefs.importing; clicked => { Prefs.import-abdm(); } }
+                    }
+                }
+            }
+        }
+    }
+
+    if Prefs.dirty: Rectangle {
+        x: (root.width - self.width) / 2;
+        y: root.height - self.height - 14px;
+        width: min(root.width - 28px, 460px);
+        height: 56px;
+        background: Mocha.popup;
+        border-radius: Mocha.r-card;
+        border-width: 2px;
+        border-color: Mocha.edge;
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #00000090;
+        HorizontalLayout {
+            padding: 10px;
+            padding-left: 16px;
+            spacing: 8px;
+            Text { text: "You have changes that are not saved."; color: Mocha.text; font-size: Mocha.fs-body; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+            Button { text: "Undo"; clicked => { Prefs.reset(); } }
+            Button { text: "Save"; primary: true; clicked => { Prefs.save(); } }
+        }
+    }
+}
+
+component DayChip inherits Rectangle {
+    in property <string> text;
+    in-out property <bool> on;
+    callback toggled();
+    width: 40px;
+    height: 28px;
+    border-radius: 14px;
+    border-width: 2px;
+    border-color: on ? Mocha.blue.with-alpha(0.6) : Mocha.edge;
+    background: ta.pressed ? Mocha.mauve.with-alpha(0.3) : on ? Mocha.blue.with-alpha(0.18) : ta.has-hover ? Mocha.surface0.with-alpha(0.6) : transparent;
+    animate background { duration: Mocha.fast; easing: ease-out; }
+    HoverEdge { border-radius: root.border-radius; lit: ta.has-hover; }
+    Text { text: root.text; color: root.on ? Mocha.text : Mocha.subtext0; font-size: Mocha.fs-small; horizontal-alignment: center; vertical-alignment: center; }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.on = !root.on; root.toggled(); } }
+}
+
+component QueueCard inherits Card {
+    in property <QueueView> q;
+    property <string> name: q.name;
+    property <string> max: q.max;
+    property <bool> d0: q.days[0];
+    property <bool> d1: q.days[1];
+    property <bool> d2: q.days[2];
+    property <bool> d3: q.days[3];
+    property <bool> d4: q.days[4];
+    property <bool> d5: q.days[5];
+    property <bool> d6: q.days[6];
+    property <bool> start-on: q.start-on;
+    property <string> start: q.start;
+    property <bool> end-on: q.end-on;
+    property <string> end: q.end;
+    property <bool> stop-empty: q.stop-empty;
+    property <int> power: q.power;
+    property <bool> dirty;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 10px;
+            Field { text <=> root.name; placeholder: "Queue name"; edited => { root.dirty = true; } }
+            Chip {
+                text: root.q.running ? "Running" : root.q.count + " waiting";
+                tone: root.q.running ? Mocha.green : Mocha.subtext0;
+                y: (parent.height - self.height) / 2;
+            }
+            Button {
+                text: root.q.running ? "Stop" : "Start";
+                icon: root.q.running ? Glyph.stop : Glyph.play;
+                primary: !root.q.running;
+                clicked => { Ui.queue-toggle(root.q.id); }
+            }
+        }
+        SettingRow {
+            title: "Downloads at the same time";
+            hint: "";
+            Field { text <=> root.max; max-width: 90px; horizontal-stretch: 0; edited => { root.dirty = true; } }
+        }
+        SettingRow {
+            title: "Stop when the queue is empty";
+            hint: "";
+            Switch { checked <=> root.stop-empty; toggled => { root.dirty = true; } }
+        }
+        SettingRow {
+            title: "When the queue finishes";
+            hint: root.power == 0 ? "" : "You get a minute to cancel first.";
+            Dropdown {
+                options: ["Do nothing", "Sleep", "Hibernate", "Shut down", "Restart"];
+                current <=> root.power;
+                selected => { root.dirty = true; }
+            }
+        }
+        Text { text: "Days"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: LayoutAlignment.start;
+            DayChip { text: "Mon"; on <=> root.d0; toggled => { root.dirty = true; } }
+            DayChip { text: "Tue"; on <=> root.d1; toggled => { root.dirty = true; } }
+            DayChip { text: "Wed"; on <=> root.d2; toggled => { root.dirty = true; } }
+            DayChip { text: "Thu"; on <=> root.d3; toggled => { root.dirty = true; } }
+            DayChip { text: "Fri"; on <=> root.d4; toggled => { root.dirty = true; } }
+            DayChip { text: "Sat"; on <=> root.d5; toggled => { root.dirty = true; } }
+            DayChip { text: "Sun"; on <=> root.d6; toggled => { root.dirty = true; } }
+        }
+        SettingRow {
+            title: "Start at a set time";
+            hint: "24 hour clock, like 02:30.";
+            Field { text <=> root.start; max-width: 90px; horizontal-stretch: 0; enabled: root.start-on; edited => { root.dirty = true; } }
+            Switch { checked <=> root.start-on; toggled => { root.dirty = true; } }
+        }
+        SettingRow {
+            title: "Stop at a set time";
+            hint: "";
+            Field { text <=> root.end; max-width: 90px; horizontal-stretch: 0; enabled: root.end-on; edited => { root.dirty = true; } }
+            Switch { checked <=> root.end-on; toggled => { root.dirty = true; } }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: LayoutAlignment.end;
+            if root.q.removable: Button {
+                text: "Delete queue";
+                icon: Glyph.trash;
+                danger: true;
+                clicked => { Ui.queue-delete(root.q.id); }
+            }
+            Button {
+                text: "Save";
+                primary: true;
+                enabled: root.dirty;
+                clicked => {
+                    Ui.queue-save(root.q.id, root.name, root.max, [root.d0, root.d1, root.d2, root.d3, root.d4, root.d5, root.d6], root.start-on, root.start, root.end-on, root.end, root.stop-empty, root.power);
+                    root.dirty = false;
+                }
+            }
+        }
+    }
+}
+
+component QueuesPage inherits Rectangle {
+    property <length> page-width: min(self.width - 24px, 720px);
+    PageScroll {
+        content-height: body.preferred-height + 40px;
+        body := VerticalLayout {
+            x: (root.width - root.page-width) / 2;
+            width: root.page-width;
+            // Keep its own height, so short pages do not stretch their rows to fill the window.
+            height: self.preferred-height;
+            y: 0px;
+            padding-top: 6px;
+            padding-bottom: 30px;
+            spacing: 14px;
+            HorizontalLayout {
+                Text { text: "Queues and schedules"; font-size: Mocha.fs-title; color: Mocha.text; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; }
+                Button { text: "New queue"; icon: Glyph.plus; clicked => { Ui.queue-new(); } }
+            }
+            for q in Ui.queues: QueueCard { q: q; }
+        }
+    }
+}
+
+component AboutPage inherits Rectangle {
+    property <length> page-width: min(self.width - 24px, 620px);
+    PageScroll {
+        content-height: body.preferred-height + 40px;
+        body := VerticalLayout {
+            x: (root.width - root.page-width) / 2;
+            width: root.page-width;
+            // Keep its own height, so short pages do not stretch their rows to fill the window.
+            height: self.preferred-height;
+            y: 0px;
+            padding-top: 6px;
+            padding-bottom: 30px;
+            spacing: 14px;
+            Card {
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 16px;
+                        alignment: start;
+                        Image { source: @image-url("../assets/icon-128.png"); width: 56px; height: 56px; }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+                            Text { text: "Seamless Download Manager"; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; }
+                            Text { text: "Version " + Ui.version; font-size: Mocha.fs-body; color: Mocha.subtext0; }
+                        }
+                    }
+                    Text {
+                        text: "A fast download manager for Windows, written in Rust. Downloads split into parts, pick up where they stopped, and come straight from your browser.";
+                        wrap: word-wrap;
+                        color: Mocha.subtext1;
+                        font-size: Mocha.fs-body;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        Button { text: "Project page"; icon: Glyph.link; clicked => { Ui.open-url("https://github.com/DavidHiFi/seamless-download-manager"); } }
+                    }
+                    Rectangle { height: 1px; background: Mocha.surface0; }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: Update.checking ? "Looking for a new version" : Update.status;
+                            color: Update.tone == 1 ? Mocha.green : Update.tone == 2 ? Mocha.blue : Update.tone == 4 ? Mocha.red : Mocha.subtext0;
+                            font-size: Mocha.fs-body;
+                            vertical-alignment: center;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+                        if Update.has-update: Button { text: "Get it"; icon: Glyph.download; primary: true; clicked => { Ui.open-url(Update.url); } }
+                        Button { text: "Check for updates"; icon: Glyph.refresh; enabled: !Update.checking; clicked => { Update.check(); } }
+                    }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 10px;
+                    SectionTitle { text: "SUPPORT"; }
+                    Text { text: "If this saves you time, a tip on Ko-fi keeps it moving."; wrap: word-wrap; color: Mocha.text; font-size: Mocha.fs-row; }
+                    HorizontalLayout {
+                        alignment: start;
+                        Button { text: "Open Ko-fi"; icon: Glyph.heart; primary: true; clicked => { Ui.open-url("https://ko-fi.com/DavidHiFi"); } }
+                    }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 10px;
+                    SectionTitle { text: "THANKS"; }
+                    Text {
+                        text: "Built on the ideas of AB Download Manager by Amir Ali Ghaffari, shared under the Apache 2.0 licence. Every line here is new, but the features and the care come from that project.";
+                        wrap: word-wrap;
+                        color: Mocha.subtext1;
+                        font-size: Mocha.fs-body;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Button { text: "AB Download Manager"; icon: Glyph.link; clicked => { Ui.open-url("https://github.com/amir1376/ab-download-manager"); } }
+                    }
+                    Text { text: "The window is drawn with Slint."; color: Mocha.subtext1; font-size: Mocha.fs-body; }
+                    AboutSlint { max-width: 260px; }
+                }
+            }
+        }
+    }
+}
+
+component AddDialog inherits Rectangle {
+    background: #11111b99;
+    // Escape closes the dialog. Clicks outside the card stay inside the dialog.
+    esc := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                AddBox.cancel();
+                return accept;
+            }
+            reject
+        }
+        TouchArea { }
+
+        card := Rectangle {
+            width: min(root.width - 32px, 560px);
+            height: body.preferred-height;
+            x: (root.width - self.width) / 2;
+            y: max(16px, (root.height - self.height) / 2 - 20px);
+            background: Mocha.popup;
+            border-radius: Mocha.r-card;
+            border-width: 2px;
+            border-color: Mocha.edge;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: #000000a0;
+
+            body := VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text { text: "Add a download"; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; }
+                Text { text: "Link"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+                url := Field {
+                    text <=> AddBox.url;
+                    placeholder: "Paste a link";
+                    icon: Glyph.link;
+                    edited(t) => { AddBox.url-edited(t); }
+                    accepted => { if AddBox.can-add { AddBox.add(true); } }
+                }
+                // Only takes a line when there is something to say about the link.
+                if AddBox.checking || AddBox.info != "": Text {
+                    text: AddBox.checking ? "Checking the link" : AddBox.info;
+                    color: AddBox.info-tone == 1 ? Mocha.green : AddBox.info-tone == 4 ? Mocha.red : Mocha.subtext0;
+                    font-size: Mocha.fs-body;
+                    wrap: word-wrap;
+                }
+                Text { text: "File name"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+                Field { text <=> AddBox.name; placeholder: "Picked from the link"; }
+                Text { text: "Save to"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Field { text <=> AddBox.folder; icon: Glyph.folder; }
+                    Button { text: "Choose"; clicked => { AddBox.browse(); } }
+                }
+                Text { text: "Queue"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+                HorizontalLayout {
+                    alignment: start;
+                    Dropdown { options: Ui.queue-names; current <=> AddBox.queue-index; min-width: 200px; }
+                }
+                SettingRow {
+                    title: "Site needs a sign-in";
+                    Switch { checked <=> AddBox.auth-on; }
+                }
+                if AddBox.auth-on: HorizontalLayout {
+                    spacing: 8px;
+                    Field { text <=> AddBox.user; placeholder: "Name"; icon: Glyph.key; }
+                    Field { text <=> AddBox.pass; placeholder: "Password"; secret: true; }
+                }
+                Rectangle { height: 4px; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    Button { text: "Cancel"; clicked => { AddBox.cancel(); } }
+                    Button { text: "Add to queue"; icon: Glyph.queue; enabled: AddBox.can-add; clicked => { AddBox.add(false); } }
+                    Button { text: "Download now"; icon: Glyph.download; primary: true; enabled: AddBox.can-add; clicked => { AddBox.add(true); } }
+                }
+            }
+        }
+    }
+
+    public function focus-url() { url.take-focus(); }
+}
+
+component ConfirmDialog inherits Rectangle {
+    background: #11111b99;
+    // Escape closes the dialog. Clicks outside the card stay inside the dialog.
+    esc := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                Confirm.open = false;
+                return accept;
+            }
+            reject
+        }
+        TouchArea { }
+        Rectangle {
+            width: min(root.width - 32px, 440px);
+            height: body.preferred-height;
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2 - 20px;
+            background: Mocha.popup;
+            border-radius: Mocha.r-card;
+            border-width: 2px;
+            border-color: Mocha.edge;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: #000000a0;
+            body := VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text { text: Confirm.title; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; wrap: word-wrap; }
+                Text { text: Confirm.body; font-size: Mocha.fs-body; color: Mocha.subtext1; wrap: word-wrap; }
+                SettingRow {
+                    title: "Also delete the files from the disk";
+                    hint: "This cannot be undone.";
+                    Switch { checked <=> Confirm.delete-files; }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    Button { text: "Cancel"; clicked => { Confirm.open = false; } }
+                    Button { text: "Remove"; icon: Glyph.trash; danger: true; clicked => { Ui.confirm-remove(Confirm.delete-files); } }
+                }
+            }
+        }
+    }
+
+    init => { esc.focus(); }
+}
+
+component LimitDialog inherits Rectangle {
+    background: #11111b99;
+    // Escape closes the dialog. Clicks outside the card stay inside the dialog.
+    esc := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                Limit.open = false;
+                return accept;
+            }
+            reject
+        }
+        TouchArea { }
+        Rectangle {
+            width: min(root.width - 32px, 440px);
+            height: body.preferred-height;
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2 - 20px;
+            background: Mocha.popup;
+            border-radius: Mocha.r-card;
+            border-width: 2px;
+            border-color: Mocha.edge;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: #000000a0;
+            body := VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text { text: "Speed limit for this download"; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; wrap: word-wrap; }
+                Text { text: Limit.title; font-size: Mocha.fs-body; color: Mocha.subtext1; wrap: word-wrap; overflow: elide; }
+                SettingRow {
+                    title: "Limit this download";
+                    hint: "The total speed limit in Settings still applies on top.";
+                    Switch { checked <=> Limit.on; }
+                }
+                SettingRow {
+                    title: "Speed limit in KB per second";
+                    Field { text <=> Limit.kb; enabled: Limit.on; mono-digits: true; max-width: 110px; horizontal-stretch: 0; accepted => { Limit.save(); } }
+                }
+                if Limit.error != "": Text { text: Limit.error; color: Mocha.red; font-size: Mocha.fs-small; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    Button { text: "Cancel"; clicked => { Limit.open = false; } }
+                    Button { text: "Save"; icon: Glyph.check; clicked => { Limit.save(); } }
+                }
+            }
+        }
+    }
+
+    init => { esc.focus(); }
+}
+
+// The dimmed backdrop and card every small dialog shares. Escape calls dismiss.
+component Sheet inherits Rectangle {
+    in property <length> card-width: 440px;
+    callback dismiss();
+    background: #11111b99;
+    esc := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            reject
+        }
+        TouchArea { }
+        Rectangle {
+            width: min(root.width - 32px, root.card-width);
+            height: body.preferred-height;
+            x: (root.width - self.width) / 2;
+            y: max(16px, (root.height - self.height) / 2 - 20px);
+            background: Mocha.popup;
+            border-radius: Mocha.r-card;
+            border-width: 2px;
+            border-color: Mocha.edge;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: #000000a0;
+            body := VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                @children
+            }
+        }
+    }
+
+    init => { esc.focus(); }
+}
+
+component PowerDialog inherits Sheet {
+    card-width: 440px;
+    dismiss => { PowerBox.cancel(); }
+    Text { text: PowerBox.title; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; wrap: word-wrap; }
+    Text {
+        text: "The computer will " + PowerBox.what + " in " + PowerBox.seconds + (PowerBox.seconds == 1 ? " second." : " seconds.");
+        font-size: Mocha.fs-row;
+        color: Mocha.subtext1;
+        wrap: word-wrap;
+    }
+    Bar { progress: PowerBox.total > 0 ? PowerBox.seconds / PowerBox.total : 0; }
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: end;
+        Button { text: PowerBox.button; icon: Glyph.power; danger: true; clicked => { PowerBox.now(); } }
+        Button { text: "Cancel"; icon: Glyph.close; primary: true; clicked => { PowerBox.cancel(); } }
+    }
+}
+
+component SumDialog inherits Sheet {
+    card-width: 520px;
+    dismiss => { SumBox.open = false; }
+    Text { text: "Check file"; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; }
+    Text { text: SumBox.file; font-size: Mocha.fs-body; color: Mocha.subtext1; overflow: elide; }
+    SettingRow {
+        title: "Kind of check";
+        Dropdown { options: SumBox.kinds; current <=> SumBox.kind; enabled: !SumBox.busy; selected(i) => { SumBox.kind-picked(i); } }
+    }
+    Rectangle {
+        height: max(44px, row.preferred-height);
+        background: Mocha.crust.with-alpha(0.55);
+        border-radius: Mocha.r-box;
+        border-width: 2px;
+        border-color: Mocha.edge;
+        row := HorizontalLayout {
+            padding: 10px;
+            padding-left: 12px;
+            spacing: 8px;
+            Text {
+                text: SumBox.busy ? "Reading the file" : SumBox.result;
+                color: SumBox.busy ? Mocha.overlay1 : Mocha.text;
+                font-size: Mocha.fs-body;
+                wrap: char-wrap;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Button { text: "Copy"; icon: Glyph.copy; compact: true; tip: "Copy"; enabled: !SumBox.busy && SumBox.result != ""; clicked => { SumBox.copy(); } }
+        }
+    }
+    Text { text: "Value from the download page"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+    Field { text <=> SumBox.expected; placeholder: "Paste it here to compare"; icon: Glyph.shield; edited(t) => { SumBox.expected-edited(t); } }
+    if SumBox.verdict != "": Text {
+        text: SumBox.verdict;
+        color: SumBox.tone == 1 ? Mocha.green : SumBox.tone == 4 ? Mocha.red : Mocha.subtext0;
+        font-size: Mocha.fs-body;
+        wrap: word-wrap;
+    }
+    HorizontalLayout {
+        alignment: end;
+        Button { text: "Close"; clicked => { SumBox.open = false; } }
+    }
+}
+
+component BatchDialog inherits Sheet {
+    card-width: 560px;
+    dismiss => { BatchBox.open = false; }
+    Text { text: "Add many links"; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; }
+    Text { text: "Put a * where the number goes, like https://site.com/part-*.zip"; color: Mocha.subtext0; font-size: Mocha.fs-small; wrap: word-wrap; }
+    Field { text <=> BatchBox.pattern; placeholder: "Link with a *"; icon: Glyph.link; edited => { BatchBox.changed(); } }
+    HorizontalLayout {
+        spacing: 10px;
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: "From"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+            Field { text <=> BatchBox.start; mono-digits: true; edited => { BatchBox.changed(); } }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: "To"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+            Field { text <=> BatchBox.end; mono-digits: true; edited => { BatchBox.changed(); } }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Text { text: "Leading zeros"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+            Dropdown { options: ["Match the last", "None", "Fixed width"]; current <=> BatchBox.padding; selected => { BatchBox.changed(); } }
+        }
+        if BatchBox.padding == 2: VerticalLayout {
+            spacing: 4px;
+            Text { text: "Width"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+            Field { text <=> BatchBox.width; mono-digits: true; max-width: 70px; edited => { BatchBox.changed(); } }
+        }
+    }
+    if BatchBox.count != "": Rectangle {
+        height: preview.preferred-height;
+        background: Mocha.crust.with-alpha(0.55);
+        border-radius: Mocha.r-box;
+        border-width: 2px;
+        border-color: Mocha.edge;
+        preview := VerticalLayout {
+            padding: 10px;
+            padding-left: 12px;
+            spacing: 3px;
+            Text { text: BatchBox.count; color: Mocha.subtext1; font-size: Mocha.fs-small; }
+            Text { text: BatchBox.first; color: Mocha.text; font-size: Mocha.fs-body; overflow: elide; }
+            if BatchBox.last != "": Text { text: "to " + BatchBox.last; color: Mocha.text; font-size: Mocha.fs-body; overflow: elide; }
+        }
+    }
+    if BatchBox.error != "": Text { text: BatchBox.error; color: Mocha.red; font-size: Mocha.fs-body; wrap: word-wrap; }
+    Text { text: "Save to"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+    HorizontalLayout {
+        spacing: 8px;
+        Field { text <=> BatchBox.folder; icon: Glyph.folder; }
+        Button { text: "Choose"; clicked => { BatchBox.browse(); } }
+    }
+    SettingRow {
+        title: "Queue";
+        Dropdown { options: Ui.queue-names; current <=> BatchBox.queue-index; min-width: 180px; }
+    }
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: end;
+        Button { text: "Cancel"; clicked => { BatchBox.open = false; } }
+        Button { text: "Add to queue"; icon: Glyph.queue; enabled: BatchBox.can-add; clicked => { BatchBox.add(false); } }
+        Button { text: "Add and start"; icon: Glyph.play; primary: true; enabled: BatchBox.can-add; clicked => { BatchBox.add(true); } }
+    }
+}
+
+component SiteDialog inherits Sheet {
+    card-width: 500px;
+    dismiss => { SiteBox.open = false; }
+    Text { text: SiteBox.is-new ? "Add a site" : "Edit site"; font-size: Mocha.fs-title; font-weight: 600; color: Mocha.text; }
+    Text { text: "Site"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+    Field { text <=> SiteBox.host; placeholder: "files.example.com or *.example.com"; icon: Glyph.globe; accepted => { SiteBox.save(); } }
+    Text { text: "Sign-in, if the site asks"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+    HorizontalLayout {
+        spacing: 8px;
+        Field { text <=> SiteBox.user; placeholder: "Name"; icon: Glyph.key; }
+        Field { text <=> SiteBox.pass; placeholder: "Password"; secret: true; }
+    }
+    Text { text: "Browser name to send"; color: Mocha.subtext0; font-size: Mocha.fs-small; }
+    Field { text <=> SiteBox.agent; placeholder: "Empty keeps the normal one"; }
+    SettingRow {
+        title: "Connections";
+        hint: "Empty keeps the number in Settings.";
+        Field { text <=> SiteBox.threads; mono-digits: true; max-width: 110px; horizontal-stretch: 0; }
+    }
+    SettingRow {
+        title: "Speed limit in KB per second";
+        hint: "Empty means no limit for this site.";
+        Field { text <=> SiteBox.kb; mono-digits: true; max-width: 110px; horizontal-stretch: 0; }
+    }
+    if SiteBox.error != "": Text { text: SiteBox.error; color: Mocha.red; font-size: Mocha.fs-body; wrap: word-wrap; }
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: end;
+        Button { text: "Cancel"; clicked => { SiteBox.open = false; } }
+        Button { text: "Save"; icon: Glyph.check; primary: true; clicked => { SiteBox.save(); } }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Seamless Download Manager";
+    icon: @image-url("../assets/icon-128.png");
+    background: transparent;
+    preferred-width: 1120px;
+    preferred-height: 700px;
+    min-width: 380px;
+    min-height: 420px;
+    default-font-family: "FiraCode Nerd Font";
+    default-font-size: 13px;
+
+    property <bool> wide: self.width >= 760px;
+    property <bool> compact-tools: self.width < 1040px;
+    property <bool> narrow-tools: self.width < 560px;
+
+    public function focus-add() { add.focus-url(); }
+    public function focus-list() { list.focus-list(); }
+
+    Rectangle {
+        background: Mocha.base.with-alpha(Ui.tint);
+    }
+
+    // Placed, not laid out by the window, so the width flags above never feed back into it.
+    HorizontalLayout {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        padding: 10px;
+        spacing: 10px;
+        if root.wide: Sidebar {
+            width: 236px;
+        }
+        VerticalLayout {
+            spacing: 10px;
+            horizontal-stretch: 1;
+            if !root.wide: HorizontalLayout {
+                spacing: 8px;
+                Dropdown {
+                    horizontal-stretch: 1;
+                    options: ["Downloads", "Queues", "Settings", "About"];
+                    current: Ui.page == "queues" ? 1 : Ui.page == "settings" ? 2 : Ui.page == "about" ? 3 : 0;
+                    selected(i) => { Ui.set-page(i == 1 ? "queues" : i == 2 ? "settings" : i == 3 ? "about" : "list"); }
+                }
+            }
+            if Ui.page == "list": Toolbar {
+                compact: root.compact-tools;
+                narrow: root.narrow-tools;
+            }
+            // One shared area for every page. A hidden element inside a layout still takes its
+            // share of the height, so the list (kept alive for its scroll place) sits here instead.
+            Rectangle {
+                vertical-stretch: 1;
+                list := ListPage {
+                    visible: Ui.page == "list";
+                    width: parent.width;
+                    height: parent.height;
+                    show-size: root.width >= 600px;
+                    show-speed: root.width >= 860px;
+                    show-eta: root.width >= 980px;
+                    show-added: root.width >= 1080px;
+                }
+                if Ui.page == "settings": SettingsPage { width: parent.width; height: parent.height; }
+                if Ui.page == "queues": QueuesPage { width: parent.width; height: parent.height; }
+                if Ui.page == "about": AboutPage { width: parent.width; height: parent.height; }
+            }
+            HorizontalLayout {
+                height: 22px;
+                padding-left: 6px;
+                padding-right: 6px;
+                spacing: 12px;
+                Text { text: Ui.running-text; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; overflow: elide; horizontal-stretch: 1; }
+                Text { text: Ui.total-speed; color: Mocha.subtext1; font-size: Mocha.fs-small; vertical-alignment: center; }
+                Rectangle {
+                    width: 7px;
+                    height: 7px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 4px;
+                    background: Ui.api-up ? Mocha.green : Mocha.red;
+                }
+                Text { text: Ui.api-up ? "Browser link on" : "Browser link off"; color: Mocha.subtext0; font-size: Mocha.fs-small; vertical-alignment: center; }
+            }
+        }
+    }
+
+    add := AddDialog {
+        visible: AddBox.open;
+    }
+
+    if Confirm.open: ConfirmDialog { }
+    if Limit.open: LimitDialog { }
+    if SumBox.open: SumDialog { }
+    if BatchBox.open: BatchDialog { }
+    if SiteBox.open: SiteDialog { }
+    if PowerBox.open: PowerDialog { }
+
+    if Ui.toast != "": Rectangle {
+        x: (root.width - self.width) / 2;
+        y: root.height - self.height - 46px;
+        width: min(root.width - 32px, toast-text.preferred-width + 40px);
+        height: 44px;
+        background: Mocha.popup;
+        border-radius: Mocha.r-card;
+        border-width: 2px;
+        border-color: Ui.toast-tone == 4 ? Mocha.red.with-alpha(0.6) : Ui.toast-tone == 1 ? Mocha.green.with-alpha(0.5) : Mocha.edge;
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #00000090;
+        toast-text := Text {
+            text: Ui.toast;
+            color: Mocha.text;
+            font-size: Mocha.fs-body;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            overflow: elide;
+            width: parent.width - 32px;
+        }
+    }
+}

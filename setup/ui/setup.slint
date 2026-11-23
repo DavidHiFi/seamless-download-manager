@@ -1,0 +1,239 @@
+import "../../app/assets/fonts/FiraCodeNerdFont-Regular.ttf";
+import "../../app/assets/fonts/FiraCodeNerdFont-SemiBold.ttf";
+import { Mocha, Glyph } from "../../app/ui/theme.slint";
+import { Button, Card, Switch, SettingRow, Bar } from "../../app/ui/widgets.slint";
+
+// One window for installing, updating and removing.
+// page: "welcome", "working", "done", "remove", "failed".
+export component SetupWindow inherits Window {
+    title: root.removing ? "Remove Seamless Download Manager" : "Install Seamless Download Manager";
+    icon: @image-url("../../app/assets/icon-128.png");
+    background: transparent;
+    width: 520px;
+    height: 460px;
+    default-font-family: "FiraCode Nerd Font";
+    default-font-size: 13px;
+
+    in property <string> version;
+    in property <string> installed-version;
+    in-out property <bool> removing;
+    in-out property <string> page: removing ? "remove" : "welcome";
+    in-out property <bool> autostart: true;
+    in-out property <bool> start-menu: true;
+    in-out property <bool> browsers: true;
+    in-out property <bool> open-after: true;
+    in-out property <bool> delete-data: false;
+    in property <string> step;
+    in property <float> progress;
+    in property <string> failure;
+    in property <string> folder;
+
+    callback install();
+    callback remove();
+    callback finish();
+    callback cancel();
+
+    property <bool> updating: installed-version != "";
+    property <bool> same: installed-version == version;
+
+    Rectangle {
+        background: Mocha.base.with-alpha(0.55);
+    }
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 18px;
+
+        // Header: the app tile and what this window does.
+        HorizontalLayout {
+            spacing: 14px;
+            alignment: start;
+            Image {
+                source: @image-url("../../app/assets/icon-128.png");
+                width: 52px;
+                height: 52px;
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 3px;
+                Text {
+                    text: "Seamless Download Manager";
+                    color: Mocha.text;
+                    font-size: Mocha.fs-title;
+                    font-weight: 600;
+                }
+                Text {
+                    text: root.removing ? "Version " + root.installed-version + " is installed"
+                        : root.same ? "Version " + root.version + " is installed"
+                        : root.updating ? "Update " + root.installed-version + " to " + root.version
+                        : "Version " + root.version;
+                    color: Mocha.subtext0;
+                    font-size: Mocha.fs-small;
+                }
+            }
+        }
+
+        if root.page == "welcome": Card {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 2px;
+                SettingRow {
+                    title: "Start with Windows";
+                    hint: "Waits quietly in the tray for downloads.";
+                    Switch { checked <=> root.autostart; }
+                }
+                SettingRow {
+                    title: "Add to the Start menu";
+                    Switch { checked <=> root.start-menu; }
+                }
+                SettingRow {
+                    title: "Connect my browsers";
+                    hint: "Lets the browser extension send downloads here.";
+                    Switch { checked <=> root.browsers; }
+                }
+                SettingRow {
+                    title: "Open when done";
+                    Switch { checked <=> root.open-after; }
+                }
+                Rectangle { vertical-stretch: 1; }
+                Text {
+                    text: "Installs for you only. No admin needed.";
+                    color: Mocha.overlay1;
+                    font-size: Mocha.fs-small;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: root.folder;
+                    color: Mocha.overlay1;
+                    font-size: Mocha.fs-small;
+                    wrap: char-wrap;
+                }
+            }
+        }
+
+        if root.page == "remove": Card {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                Text {
+                    text: "This removes the app, its Start menu entry, start with Windows and the browser link.";
+                    color: Mocha.text;
+                    font-size: Mocha.fs-row;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Files you downloaded stay where they are.";
+                    color: Mocha.subtext0;
+                    wrap: word-wrap;
+                }
+                SettingRow {
+                    title: "Also delete my download list and settings";
+                    hint: "Leave this off to keep them for a later install.";
+                    Switch { checked <=> root.delete-data; }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+
+        if root.page == "working": Card {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                alignment: center;
+                Text {
+                    text: root.step;
+                    color: Mocha.text;
+                    font-size: Mocha.fs-row;
+                    horizontal-alignment: center;
+                }
+                Bar { progress: root.progress; }
+            }
+        }
+
+        if root.page == "done": Card {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 10px;
+                alignment: center;
+                Text {
+                    text: Glyph.check;
+                    color: Mocha.green;
+                    font-size: 34px;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.removing ? "Removed." : root.updating && !root.same ? "Updated to " + root.version + "." : "Installed.";
+                    color: Mocha.text;
+                    font-size: Mocha.fs-title;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.removing ? "Your downloaded files are still there."
+                        : "Find it in the Start menu or the tray. Get the browser extension from the same download page.";
+                    color: Mocha.subtext0;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        if root.page == "failed": Card {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 10px;
+                alignment: center;
+                Text {
+                    text: root.removing ? "Could not finish removing it." : "Could not finish the install.";
+                    color: Mocha.red;
+                    font-size: Mocha.fs-title;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.failure;
+                    color: Mocha.text;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: end;
+            if root.page == "welcome" && root.updating: Button {
+                text: "Remove";
+                icon: Glyph.trash;
+                danger: true;
+                clicked => {
+                    root.removing = true;
+                    root.page = "remove";
+                }
+            }
+            if root.page == "welcome" || root.page == "remove": Button {
+                text: "Cancel";
+                clicked => { root.cancel(); }
+            }
+            if root.page == "welcome": Button {
+                text: root.same ? "Reinstall" : root.updating ? "Update" : "Install";
+                icon: Glyph.download;
+                primary: true;
+                clicked => { root.install(); }
+            }
+            if root.page == "remove": Button {
+                text: "Remove";
+                danger: true;
+                clicked => { root.remove(); }
+            }
+            if root.page == "done" || root.page == "failed": Button {
+                text: "Close";
+                primary: root.page == "done";
+                clicked => { root.finish(); }
+            }
+        }
+    }
+}

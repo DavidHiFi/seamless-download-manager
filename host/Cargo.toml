@@ -1,0 +1,18 @@
+[package]
+name = "sdm-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "sdm-host"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+windows.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

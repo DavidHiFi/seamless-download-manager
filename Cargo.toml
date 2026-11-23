@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = ["crates/sdm-engine", "crates/sdm-core", "crates/sdm-api", "crates/sdm-ffi", "app", "host", "setup"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "net"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "http2", "socks"] }
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+url = "2"
+percent-encoding = "2"
+rusqlite = { version = "0.37", features = ["bundled"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Security_Cryptography", "Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_UI_Shell", "Win32_System_Registry", "Win32_System_Power", "Win32_UI_Controls"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+getrandom = "0.3"
+tempfile = "3"
+sdm-engine = { path = "crates/sdm-engine" }
+sdm-core = { path = "crates/sdm-core" }
+sdm-api = { path = "crates/sdm-api" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true
+panic = "abort"

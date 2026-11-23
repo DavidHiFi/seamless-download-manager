@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seamless Download Manager</title>
+  <link rel="stylesheet" href="../ui/theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <img src="../icons/icon-48.png" width="32" height="32" alt="">
+    <div class="who">
+      <h1>Seamless Download Manager</h1>
+      <span id="chip" class="chip">Checking</span>
+    </div>
+  </header>
+  <p id="note" class="hint note" role="status" hidden></p>
+
+  <main class="list">
+    <label class="row edge card item">
+      <span class="label">Catch downloads</span>
+      <input class="sw" type="checkbox" data-key="autoCapture">
+      <span class="switch edge"><span class="knob"></span></span>
+    </label>
+    <label class="row edge card item">
+      <span class="label">Show the download button on pages</span>
+      <input class="sw" type="checkbox" data-key="pageButtons">
+      <span class="switch edge"><span class="knob"></span></span>
+    </label>
+    <label class="row edge card item">
+      <span class="label">Add without asking</span>
+      <input class="sw" type="checkbox" data-key="silentAdd">
+      <span class="switch edge"><span class="knob"></span></span>
+    </label>
+    <label class="row edge card item" id="startRow">
+      <span class="label">Start right away</span>
+      <input class="sw" type="checkbox" data-key="silentStart">
+      <span class="switch edge"><span class="knob"></span></span>
+    </label>
+  </main>
+
+  <footer class="foot">
+    <button id="all" class="btn edge" type="button">All settings</button>
+  </footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

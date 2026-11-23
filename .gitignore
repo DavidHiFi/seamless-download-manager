@@ -1,0 +1,5 @@
+target/
+*.bak-*
+docs/audit/.analyze.log
+extension/keys/
+*.pem

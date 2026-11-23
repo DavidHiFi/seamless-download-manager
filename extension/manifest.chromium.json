@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Seamless Download Manager",
+  "short_name": "Seamless",
+  "version": "0.1.0",
+  "description": "Sends downloads from your browser to Seamless Download Manager.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmNIOemrfulEyeZEa95cczs+aGoGxTEz1mMKiiZEY5R6FJmVl6LIN9OKS4YBiE9HDcT+s6CFQDW/Fny76axCoR+MBotxCytHdMyqARpld68v4rNik30Th532D7oWbxaNTs7lW5+h8CXhCPi9+lEvY8BXISGh/nyuKKw2LmbMLrOiHKml/Ohqvj5eF//bmAuhtOG9xXnWpEFM6gkOoNFKokPJUor3SovwCLBQmbG+Jq93JoPMyJ9gboiQ6db5GsjDVu4QaT0hkBqcixaFZBGNsFvbNU4XW03CG5dNYsjqt8TUNp8/f47URGLKtPTE3k/xCvQqdjZE7HwEUezfpRSOvPwIDAQAB",
+  "minimum_chrome_version": "116",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": {
+    "default_title": "Seamless Download Manager",
+    "default_popup": "popup/popup.html",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" }
+  },
+  "options_ui": { "page": "options/options.html", "open_in_tab": true },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["webRequest", "cookies", "storage", "tabs", "downloads", "nativeMessaging", "contextMenus"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ]
+}
