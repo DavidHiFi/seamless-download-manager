@@ -6,7 +6,7 @@
 
 **A fast download manager for Windows, written in Rust, with its own browser extension.**
 
-A Windhawk mod version is on its way to [Seamless Workshop](https://github.com/DavidHiFi/seamless-workshop).
+It also comes as a Windhawk mod, installed from [Seamless Workshop](https://github.com/DavidHiFi/seamless-workshop).
 
 <a href="https://github.com/DavidHiFi/seamless-download-manager/releases/latest">
 <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-2EA043?style=for-the-badge&labelColor=161B22" alt="Download the latest release" height="42">
@@ -34,7 +34,7 @@ To update, run the newer installer. To remove it, use **Settings > Apps**, or ru
 
 ### As a Windhawk mod
 
-The same engine will run inside [Windhawk](https://windhawk.net) as the **Seamless Download Manager** mod, with no separate app in the tray. It is being finished now and will install from [Seamless Workshop](https://github.com/DavidHiFi/seamless-workshop). The mod and the app share one download list and one browser link, and only one of them runs at a time.
+The same engine will run inside [Windhawk](https://windhawk.net) as the **Seamless Download Manager** mod, with no separate app in the tray. Install it from [Seamless Workshop](https://github.com/DavidHiFi/seamless-workshop): open the Workshop, find Seamless Download Manager under Tools and press Install. The Workshop also sets up the engine it needs. The mod and the app share one download list and one browser link, and only one of them runs at a time.
 
 ## Features
 

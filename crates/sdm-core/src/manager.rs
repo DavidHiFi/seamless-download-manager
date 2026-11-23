@@ -225,10 +225,21 @@ impl Manager {
             store.save_queue(&Queue::main())?;
         }
 
+        let categories = store.load_categories()?;
         let mut items = BTreeMap::new();
         for mut item in store.load_downloads()? {
+            let mut changed = false;
             if matches!(item.status, Status::Downloading | Status::Retrying | Status::Queued) {
                 item.status = Status::Paused;
+                changed = true;
+            }
+            // Imports from AB only carry categories AB filed the item under, so fill the gaps
+            // with the same rule new downloads get.
+            if item.category_id.is_none() {
+                item.category_id = categories.iter().find(|c| c.matches(&item.name, &item.url)).map(|c| c.id);
+                changed |= item.category_id.is_some();
+            }
+            if changed {
                 store.update_download(&item)?;
             }
             items.insert(item.id, item);
@@ -239,7 +250,7 @@ impl Manager {
         let state = State {
             items,
             queues: store.load_queues()?,
-            categories: store.load_categories()?,
+            categories,
             settings,
             running: HashMap::new(),
             manual: HashSet::new(),
@@ -1302,6 +1313,25 @@ mod tests {
         }
         let m = Manager::open(dir.path().to_path_buf()).unwrap();
         assert_eq!(m.list()[0].status, Status::Paused);
+    }
+
+    #[tokio::test]
+    async fn uncategorised_items_get_a_category_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        {
+            let store = Store::open(&dir.path().join("sdm.db")).unwrap();
+            for name in ["setup.exe", "notes.xyz"] {
+                let item = DownloadItem::new(format!("https://example.com/{name}"), "D:\\Dl", name);
+                store.insert_download(&item).unwrap();
+            }
+        }
+        let m = Manager::open(dir.path().to_path_buf()).unwrap();
+        let by_name = |n: &str| m.list().into_iter().find(|v| v.name == n).unwrap().category_id;
+        assert_eq!(by_name("setup.exe"), Some(1));
+        assert_eq!(by_name("notes.xyz"), None);
+        drop(m);
+        let saved = Store::open(&dir.path().join("sdm.db")).unwrap().load_downloads().unwrap();
+        assert!(saved.iter().any(|i| i.name == "setup.exe" && i.category_id == Some(1)));
     }
 
     #[tokio::test]
