@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/sdm-engine", "crates/sdm-core", "crates/sdm-api", "crates/sdm-ffi", "app", "host", "setup"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "Apache-2.0"
 
@@ -34,3 +34,12 @@ lto = "thin"
 codegen-units = 4
 strip = true
 panic = "abort"
+
+# The engine library runs inside Windhawk's process, so a bug there must never end that
+# process: unwind, so sdm_call and sdm_stop catch it, and keep a .pdb for crash dumps.
+# Build with `cargo build --profile release-dll -p sdm-ffi`.
+[profile.release-dll]
+inherits = "release"
+panic = "unwind"
+strip = "none"
+debug = "line-tables-only"

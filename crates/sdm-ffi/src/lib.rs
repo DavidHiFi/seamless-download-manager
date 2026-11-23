@@ -9,7 +9,7 @@ use std::ffi::{CStr, CString, c_char};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -66,6 +66,11 @@ impl Drop for Instance {
 }
 
 static CORE: Mutex<Option<Core>> = Mutex::new(None);
+
+/// A caught bug while the lock was held must not lock everyone out, `sdm_stop` included.
+fn core_lock() -> std::sync::MutexGuard<'static, Option<Core>> {
+    CORE.lock().unwrap_or_else(|p| p.into_inner())
+}
 static NEXT_JOB: AtomicU64 = AtomicU64::new(1);
 static LAST_SOUND: AtomicU64 = AtomicU64::new(0);
 
@@ -476,8 +481,39 @@ fn command(core: &Core, req: &Value) -> Result<Value> {
     })
 }
 
+static CRASH_FILE: OnceLock<PathBuf> = OnceLock::new();
+
+/// Writes every engine bug to `engine-crash.txt` in the data folder (time, thread, place,
+/// message), so a failure inside Windhawk's process leaves its reason behind.
+fn note_panics(dir: &Path) {
+    if CRASH_FILE.set(dir.join("engine-crash.txt")).is_err() {
+        return;
+    }
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Some(path) = CRASH_FILE.get() {
+            let when = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+            let thread = std::thread::current().name().unwrap_or("unnamed").to_string();
+            let place = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+            let what = info
+                .payload()
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                .unwrap_or_default();
+            let line = format!("{when} {} thread={thread} at={place} {what}\n", env!("CARGO_PKG_VERSION"));
+            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                use std::io::Write;
+                let _ = f.write_all(line.as_bytes());
+            }
+        }
+        previous(info);
+    }));
+}
+
 fn start(dir: PathBuf) -> Result<i32> {
-    let mut slot = CORE.lock().map_err(|_| anyhow!("engine lock poisoned"))?;
+    note_panics(&dir);
+    let mut slot = core_lock();
     if slot.is_some() {
         return Ok(0);
     }
@@ -502,7 +538,7 @@ fn start(dir: PathBuf) -> Result<i32> {
 }
 
 fn stop() {
-    let Some(core) = CORE.lock().ok().and_then(|mut s| s.take()) else { return };
+    let Some(core) = core_lock().take() else { return };
     let Core { rt, manager, api, instance, .. } = core;
     {
         let _enter = rt.enter();
@@ -511,7 +547,9 @@ fn stop() {
     if let Some(api) = api {
         rt.block_on(api.stop());
     }
-    rt.block_on(tokio::time::sleep(Duration::from_millis(300)));
+    // The caller is a plain thread, so the sleep is built inside the runtime: tokio's
+    // timer lookup panics when `sleep` is created outside it (the 0.1.0 switch-off crash).
+    rt.block_on(async { tokio::time::sleep(Duration::from_millis(300)).await });
     drop(manager);
     rt.shutdown_timeout(Duration::from_secs(3));
     drop(instance);
@@ -541,7 +579,7 @@ pub unsafe extern "C" fn sdm_start(data_dir: *const u16) -> i32 {
     match std::panic::catch_unwind(|| start(dir)) {
         Ok(Ok(code)) => code,
         Ok(Err(e)) => {
-            *LAST_ERROR.lock().unwrap() = e.to_string();
+            *LAST_ERROR.lock().unwrap_or_else(|p| p.into_inner()) = e.to_string();
             -1
         }
         Err(_) => -1,
@@ -569,7 +607,7 @@ pub unsafe extern "C" fn sdm_call(request: *const c_char) -> *mut c_char {
     let text = unsafe { CStr::from_ptr(request) }.to_string_lossy().into_owned();
     let out = std::panic::catch_unwind(|| -> Result<Value> {
         let req: Value = serde_json::from_str(&text).context("the request is not JSON")?;
-        let guard = CORE.lock().map_err(|_| anyhow!("engine lock poisoned"))?;
+        let guard = core_lock();
         let core = guard.as_ref().ok_or_else(|| anyhow!("the engine is not running"))?;
         command(core, &req)
     });
@@ -634,6 +672,9 @@ mod tests {
         sdm_stop();
         assert!(call(json!({"cmd":"version"}))["error"].is_string());
         sdm_stop();
+        // sdm_stop swallows a panic, so check the crash note: a caught bug must still fail here.
+        let crash = std::fs::read_to_string(dir.path().join("engine-crash.txt")).unwrap_or_default();
+        assert!(crash.is_empty(), "the engine hit a bug: {crash}");
     }
 
     #[test]

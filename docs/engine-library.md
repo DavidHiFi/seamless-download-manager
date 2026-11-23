@@ -24,6 +24,10 @@ char* sdm_last_error(void);                 // {"error":"..."} after sdm_start r
   check, import) returns a job number to poll.
 - Never unload the DLL (`FreeLibrary`): its threads may still be finishing. Call `sdm_stop`
   and leave it loaded.
+- A bug inside the library never ends the host process: `sdm_call` replies
+  `{"error":"the engine hit a bug"}` and `sdm_stop` returns. Each one is written to
+  `engine-crash.txt` in the data folder. Build it with `--profile release-dll`, which keeps
+  that behavior and a `.pdb` beside the DLL.
 - Sounds on finish and fail play from the library itself (at most one every 2 seconds),
   following the settings.
 
@@ -38,7 +42,7 @@ Each request is an object with `cmd` plus the fields shown.
 
 | cmd | fields | reply |
 |---|---|---|
-| `version` | | `{"version":"0.1.0"}` |
+| `version` | | `{"version":"0.1.1"}` |
 | `status` | | `api_up`, `api_port`, `api_text`, `data_dir` |
 | `poll` | `rev` (optional, last rev seen) | `rev`, `queues_rev`, `settings_rev`, `show`, `exit`, `add_requests` (list of add requests from the browser), `power` (`{queue, action}` or null), and `downloads` (full list) only when `rev` differs |
 | `list` | | list of downloads |
