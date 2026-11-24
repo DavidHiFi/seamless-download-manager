@@ -1,17 +1,16 @@
 # Seamless Download Manager: design
 
-All-Rust Windows rewrite of AB Download Manager (ABDM), owned end to end: engine, API,
-native window, browser extension. Audits in `docs/audit/`. Decisions
-on 2026-11-22: all-Rust window, import everything from ABDM, our own extension with the
-capture gaps fixed. Public since 0.1.0 (2026-11-23), with the Windhawk mod in
-Seamless Workshop as the main way to run it.
+An all-Rust Windows download manager, owned end to end: engine, API, native window,
+browser extension. Decisions on 2026-11-22: all-Rust window, our own extension with the
+capture gaps fixed. Public since 0.1.0 (2026-11-23), with the Windhawk mod in Seamless
+Workshop as the main way to run it. Since 0.1.3 it has no import from other apps.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `crates/sdm-engine` | Download engine: probe, multi-part ranged download, dynamic split, resume, retry with backoff, speed limits, sparse files, HLS. No storage, no UI. |
-| `crates/sdm-core` | Model, SQLite store, settings, categories, queues and scheduler, ABDM import, the `Manager` that ties engine and store. |
+| `crates/sdm-core` | Model, SQLite store, settings, categories, queues and scheduler, the `Manager` that ties engine and store. |
 | `crates/sdm-api` | Local HTTP API (axum) on 127.0.0.1, protocol types shared with the native host and CLI. |
 | `app` | `seamless-download-manager.exe`: Slint window, tray, single instance, autostart, CLI subcommands. |
 | `host` | `sdm-host.exe`: browser native messaging host. Tiny, starts the app when it is closed. |
@@ -21,7 +20,7 @@ Data: `%LOCALAPPDATA%\SeamlessDownloadManager\` (`sdm.db`, `settings.json`, `log
 Binaries: `%LOCALAPPDATA%\SeamlessDownloadManager\bin\` (outside the source folder, so a
 build never fights a running copy).
 
-## Fixes over ABDM (from the audits)
+## Design choices
 
 - One process, async IO, no JVM. No second process per CLI or browser call.
 - First probe request is kept as part 0, so one-time links are not spent twice.
@@ -42,14 +41,14 @@ build never fights a running copy).
 
 ## Protocol
 
-HTTP on `127.0.0.1:15161` (ABDM keeps 15151 while both are installed). Header `X-Api-Key`.
+HTTP on `127.0.0.1:15161`. Header `X-Api-Key`.
 
 | Method | Path | Body | Reply |
 |---|---|---|---|
 | POST | `/ping` | none | `{"ok":true,"app":"sdm","version":"x"}` |
-| POST | `/add` | ABDM shape: `{"items":[{type,link,headers,downloadPage,suggestedName}],"options":{silentAdd,silentStart}}` | `{"ok":true,"ids":[..]}` |
+| POST | `/add` | `{"items":[{type,link,headers,downloadPage,suggestedName}],"options":{silentAdd,silentStart}}` | `{"ok":true,"ids":[..]}` |
 | GET | `/queues` | none | `[{"id","name"}]` |
-| POST | `/start-headless-download` | ABDM `NewDownloadTask` | `{"ok":true,"id":n}` |
+| POST | `/start-headless-download` | one download task (link, folder, name, headers) | `{"ok":true,"id":n}` |
 | GET | `/v1/downloads` | none | list with status and progress |
 | POST | `/v1/downloads/{id}/pause`, `/resume`, `DELETE /v1/downloads/{id}?file=1` | | `{"ok":true}` |
 | POST | `/v1/handoff` | `{"path":"<finished browser file>","url"?,"referrer"?}` | `{"ok":true,"id":n}` adopts the file into the list, no re-download |

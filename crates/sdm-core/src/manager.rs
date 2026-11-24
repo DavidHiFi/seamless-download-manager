@@ -13,7 +13,6 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 use windows::Win32::System::Power::{ES_CONTINUOUS, ES_SYSTEM_REQUIRED, SetThreadExecutionState};
 
-use crate::import::{self, ImportReport};
 use crate::model::{
     Category, DownloadItem, MAIN_QUEUE_ID, PowerAction, Queue, ResumeState, SourceKind, Status, Weekday,
     default_categories,
@@ -1103,34 +1102,6 @@ impl Manager {
         Ok(())
     }
 
-    // ---- import ----
-
-    pub fn import_abdm(self: &Arc<Self>, path: &Path) -> Result<ImportReport> {
-        let data = import::read(path)?;
-        let report = import::apply(&data, &self.store)?;
-
-        let mut new_ids = Vec::new();
-        {
-            let mut st = self.lock();
-            for item in self.store.load_downloads()? {
-                if let std::collections::btree_map::Entry::Vacant(slot) = st.items.entry(item.id) {
-                    new_ids.push(item.id);
-                    slot.insert(item);
-                }
-            }
-            st.queues = self.store.load_queues()?;
-            st.categories = self.store.load_categories()?;
-        }
-        for id in new_ids {
-            self.emit(ManagerEvent::Added(id));
-        }
-        self.emit(ManagerEvent::QueuesChanged);
-
-        let mut settings = self.settings();
-        import::apply_settings(&data, &mut settings);
-        self.update_settings(settings)?;
-        Ok(report)
-    }
 }
 
 fn apply_state(item: &mut DownloadItem, state: ResumeState) {
@@ -1367,21 +1338,6 @@ mod tests {
         assert_eq!(Settings::load(&dir.path().join("settings.json")).unwrap().thread_count, 3);
         s.thread_count = 0;
         assert!(m.update_settings(s).is_err());
-    }
-
-    #[tokio::test]
-    async fn import_abdm_fixture() {
-        let (_dir, m) = open().await;
-        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests").join("fixtures").join("abdm");
-        let report = m.import_abdm(&fixture).unwrap();
-        assert_eq!((report.downloads, report.queues), (3, 1));
-        assert_eq!(m.get(2).unwrap().downloaded, 250);
-        assert_eq!(m.settings().thread_count, 6);
-        let again = m.import_abdm(&fixture).unwrap();
-        assert_eq!(again.downloads, 0);
-        assert_eq!(m.list().len(), 3);
-        let id = m.add(req("https://example.com/new.zip")).unwrap();
-        assert!(id > 4);
     }
 
     #[test]

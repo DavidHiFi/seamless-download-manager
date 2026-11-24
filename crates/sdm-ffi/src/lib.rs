@@ -469,14 +469,6 @@ fn command(core: &Core, req: &Value) -> Result<Value> {
             run_power(m.data_dir(), action)?;
             json!({ "ok": true })
         }
-        "import_abdm" => {
-            let path = PathBuf::from(text(req, "path")?);
-            let m = m.clone();
-            spawn_job(core, async move {
-                let report = tokio::task::spawn_blocking(move || m.import_abdm(&path)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
-                Ok(json!({ "report": format!("{report:?}") }))
-            })
-        }
         other => bail!("unknown command {other}"),
     })
 }

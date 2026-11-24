@@ -295,7 +295,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn six_default_categories_with_abdm_lists() {
+    fn six_default_categories() {
         let cats = default_categories(Path::new("D:\\Dl"));
         assert_eq!(cats.len(), 6);
         assert_eq!(cats[2].name, "Videos");

@@ -60,12 +60,11 @@ The same engine will run inside [Windhawk](https://windhawk.net) as the **Seamle
 - **Catppuccin Mocha** look with frosted glass, in a window that stays usable down to phone width.
 - **Tray icon**, start with Windows, and sounds when a download finishes or fails.
 - **Command line:** add, list, pause, resume and remove downloads from a script.
-- **Moving from AB Download Manager:** brings over your download list, queues and settings.
 
 ## Notes
 
 > [!NOTE]
-> **New project.** Version 0.1 replaces AB Download Manager on its author's PC every day, but it has not been tested on many others yet. Bug reports help a lot.
+> **New project.** Version 0.1 runs on its author's PC every day, but it has not been tested on many others yet. Bug reports help a lot.
 
 > [!IMPORTANT]
 > **The Zen and Firefox add-on is not signed yet.** Chromium browsers load it unpacked. Mozilla signing is planned.
@@ -86,7 +85,6 @@ resume <id>          resume a download
 remove <id> [--delete-file]
 show                 bring the window forward
 gui exit             close the app
---import-abdm        bring over AB Download Manager's list and settings
 ```
 
 </details>
@@ -146,7 +144,7 @@ Thank you for every star.
 
 | Who | What |
 |---|---|
-| **amir1376** ([AB Download Manager](https://github.com/amir1376/ab-download-manager)) | The app this rewrites: its features, the layout of its window, and its data files, which the import reads. No code is copied. |
+| **amir1376** ([AB Download Manager](https://github.com/amir1376/ab-download-manager)) | The app whose ideas this is built on: its features and the layout of its window. No code is copied. |
 | **Catppuccin** ([palette](https://github.com/catppuccin/catppuccin)) | The Mocha colours. |
 | **The Fira Code Project Authors** ([Fira Code](https://github.com/tonsky/FiraCode)) and **Nerd Fonts** ([nerd-fonts](https://github.com/ryanoasis/nerd-fonts)) | The font and icons, bundled under the SIL Open Font License (`app/assets/fonts/OFL.txt`). |
 

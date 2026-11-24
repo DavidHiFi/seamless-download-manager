@@ -116,13 +116,10 @@ export global Prefs {
     in-out property <bool> tray;
     in-out property <bool> start-hidden;
     in-out property <float> tint;
-    in property <string> import-status;
-    in property <bool> importing;
     callback changed();
     callback save();
     callback reset();
     callback browse-folder();
-    callback import-abdm();
     callback copy-key();
     in-out property <bool> dirty;
     // Name lookup: 0 Windows, 1 Cloudflare, 2 Google, 3 Quad9, 4 a custom address.
@@ -925,19 +922,6 @@ component SettingsPage inherits Rectangle {
                         alignment: start;
                         padding-top: 4px;
                         Button { text: "Add a site"; icon: Glyph.plus; clicked => { Sites.add(); } }
-                    }
-                }
-            }
-
-            Card {
-                VerticalLayout {
-                    padding: 18px;
-                    spacing: 6px;
-                    SectionTitle { text: "AB DOWNLOAD MANAGER"; }
-                    SettingRow {
-                        title: "Bring over downloads, queues and settings";
-                        hint: Prefs.import-status != "" ? Prefs.import-status : "Copies the list, queues, file types and settings. AB Download Manager is left as it is.";
-                        Button { text: Prefs.importing ? "Copying" : "Copy from AB"; icon: Glyph.import; enabled: !Prefs.importing; clicked => { Prefs.import-abdm(); } }
                     }
                 }
             }

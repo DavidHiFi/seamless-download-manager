@@ -329,7 +329,7 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
-    /// Next id for a new queue or category: above the highest and above 10, like ABDM.
+    /// Next id for a new queue or category: above the highest and above 10.
     pub fn next_queue_id(&self) -> Result<i64> {
         let max: Option<i64> = self.conn().query_row("SELECT MAX(id) FROM queues", [], |r| r.get(0))?;
         Ok(max.unwrap_or(0).max(10) + 1)

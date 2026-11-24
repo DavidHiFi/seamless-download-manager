@@ -56,28 +56,6 @@ struct Shared {
     power: Mutex<Option<(String, PowerAction)>>,
 }
 
-/// Copies AB Download Manager's data in with no window and writes the result beside the data.
-fn import_without_window(manager: &Arc<Manager>, dir: &std::path::Path) -> Result<()> {
-    let Some(source) = sdm_core::import::default_abdm_dir().and_then(|d| sdm_core::import::locate(&d).or(Some(d))) else {
-        anyhow::bail!("AB Download Manager's data folder was not found");
-    };
-    let report = manager.import_abdm(&source)?;
-    let mut text = format!(
-        "downloads={}\nqueues={}\ncategories={}\nskipped={}\nerrors={}\n",
-        report.downloads,
-        report.queues,
-        report.categories,
-        report.skipped,
-        report.errors.len()
-    );
-    for e in &report.errors {
-        text.push_str(e);
-        text.push('\n');
-    }
-    std::fs::write(dir.join("import-report.txt"), text)?;
-    Ok(())
-}
-
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(code) = cli::run(&args, &data_dir()) {
@@ -94,9 +72,6 @@ fn main() -> Result<()> {
     };
 
     let manager = Manager::open(dir.clone())?;
-    if std::env::args().any(|a| a == "--import-abdm") {
-        return import_without_window(&manager, &dir);
-    }
     let api = rt.block_on(sdm_api::serve(manager.clone()));
     let (api_up, api_text) = match &api {
         Ok(handle) => (true, format!("Listening on port {}.", handle.port())),
@@ -137,7 +112,7 @@ fn main() -> Result<()> {
     listen(&manager, shared.clone(), app.as_weak());
     wire_list(&app, &view, &shared);
     wire_add(&app, &view, &shared);
-    wire_prefs(&app, &view, &shared);
+    wire_prefs(&app, &view);
     wire_queues(&app, &view);
     extras::wire(&app, &view);
 
@@ -1125,7 +1100,7 @@ fn save_prefs(app: &AppWindow, manager: &Arc<Manager>) -> Result<(), String> {
     Ok(())
 }
 
-fn wire_prefs(app: &AppWindow, view: &Rc<RefCell<View>>, shared: &Arc<Shared>) {
+fn wire_prefs(app: &AppWindow, view: &Rc<RefCell<View>>) {
     let prefs = app.global::<Prefs>();
     let weak = app.as_weak();
     {
@@ -1177,47 +1152,6 @@ fn wire_prefs(app: &AppWindow, view: &Rc<RefCell<View>>, shared: &Arc<Shared>) {
             if set_clipboard(&key) {
                 toast(&app, &view, "Browser key copied", 1);
             }
-        });
-    }
-    {
-        let (weak, view, shared) = (weak.clone(), view.clone(), shared.clone());
-        prefs.on_import_abdm(move || {
-            let Some(app) = weak.upgrade() else { return };
-            let p = app.global::<Prefs>();
-            let Some(dir) = sdm_core::import::default_abdm_dir().and_then(|d| sdm_core::import::locate(&d).or(Some(d))) else {
-                p.set_import_status("AB Download Manager's data folder was not found.".into());
-                return;
-            };
-            p.set_importing(true);
-            p.set_import_status("Copying from AB Download Manager".into());
-            let manager = view.borrow().manager.clone();
-            let weak = weak.clone();
-            let shared = shared.clone();
-            tokio::task::spawn_blocking(move || {
-                let result = manager.import_abdm(&dir);
-                shared.dirty.fetch_or(LIST_DIRTY | QUEUES_DIRTY | SETTINGS_DIRTY, Ordering::SeqCst);
-                let text = match result {
-                    Ok(r) => {
-                        let mut t = format!(
-                            "Brought over {} downloads, {} queues and {} file types.",
-                            r.downloads, r.queues, r.categories
-                        );
-                        if r.skipped > 0 {
-                            t.push_str(&format!(" {} were already here.", r.skipped));
-                        }
-                        if !r.errors.is_empty() {
-                            t.push_str(&format!(" {} could not be read.", r.errors.len()));
-                        }
-                        t
-                    }
-                    Err(e) => format!("Could not copy: {e}"),
-                };
-                let _ = weak.upgrade_in_event_loop(move |app| {
-                    let p = app.global::<Prefs>();
-                    p.set_importing(false);
-                    p.set_import_status(text.into());
-                });
-            });
         });
     }
 }
