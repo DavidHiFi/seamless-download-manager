@@ -34,7 +34,7 @@ To update, run the newer installer. To remove it, use **Settings > Apps**, or ru
 
 ### As a Windhawk mod
 
-The same engine will run inside [Windhawk](https://windhawk.net) as the **Seamless Download Manager** mod, with no separate app in the tray. Install it from [Seamless Workshop](https://github.com/DavidHiFi/seamless-workshop): open the Workshop, find Seamless Download Manager under Tools and press Install. The Workshop also sets up the engine it needs. The mod and the app share one download list and one browser link, and only one of them runs at a time.
+The same engine runs inside [Windhawk](https://windhawk.net) as the **Seamless Download Manager** mod, with no separate app in the tray. Install it from [Seamless Workshop](https://github.com/DavidHiFi/seamless-workshop): open the Workshop, find Seamless Download Manager under Tools and press Install. The Workshop also sets up the engine it needs. The mod and the app share one download list and one browser link, and only one of them runs at a time.
 
 ## Features
 
@@ -49,6 +49,14 @@ The same engine will run inside [Windhawk](https://windhawk.net) as the **Seamle
 - **Sign-ins:** a name and password per download for sites that ask.
 - **File check:** compare a finished file's MD5, SHA-1, SHA-256 or SHA-512 with the site's value.
 
+### After a download
+
+- **Unpacks archives:** zip, 7z, rar and tar files unpack into their own folder, and the archive can go to the Recycle Bin.
+- **Virus scan:** programs and archives get a Windows Security scan when they finish.
+- **No double downloads:** a link you already have on disk is skipped, with a one-click way to get it again.
+- **Disk guard:** stops a download before the drive drops under a floor you pick. Resume it once there is room.
+- **Tidy list:** finished entries leave the list after a set number of days. The files stay.
+
 ### Browser
 
 - **Own extension** for Chromium browsers and Firefox-based browsers.
@@ -61,10 +69,17 @@ The same engine will run inside [Windhawk](https://windhawk.net) as the **Seamle
 - **Tray icon**, start with Windows, and sounds when a download finishes or fails.
 - **Command line:** add, list, pause, resume and remove downloads from a script.
 
+### In the Windhawk mod
+
+- **Corner card:** a small glass card when a download finishes, with Open and Show in folder. It stays away while a game runs full screen.
+- **Copied links:** copy a link to a file anywhere and it offers to download it.
+- **Shortcut:** opens the window from anywhere, Ctrl+Alt+D by default.
+- **Progress:** the tray icon and the taskbar button fill as downloads run.
+
 ## Notes
 
 > [!NOTE]
-> **New project.** Version 0.1 runs on its author's PC every day, but it has not been tested on many others yet. Bug reports help a lot.
+> **New project.** It runs on its author's PC every day, but it has not been tested on many others yet. Bug reports help a lot.
 
 > [!IMPORTANT]
 > **The Zen and Firefox add-on is not signed yet.** Chromium browsers load it unpacked. Mozilla signing is planned.

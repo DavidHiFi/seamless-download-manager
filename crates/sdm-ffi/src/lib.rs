@@ -34,6 +34,7 @@ struct Inbox {
     show: bool,
     exit: bool,
     power: Option<(String, PowerAction)>,
+    notices: Vec<sdm_core::manager::Notice>,
 }
 
 enum Job {
@@ -141,6 +142,14 @@ fn listen(manager: &Arc<Manager>, inbox: Arc<Mutex<Inbox>>) {
                     play_done(&manager.settings(), ok);
                 }
                 Ok(ManagerEvent::QueueFinished { name, action, .. }) => b.power = Some((name, action)),
+                Ok(ManagerEvent::Notice(n)) => {
+                    // A big batch must not pile up pop-ups the window never reads.
+                    if b.notices.len() >= 20 {
+                        b.notices.remove(0);
+                    }
+                    b.notices.push(n);
+                    b.rev += 1;
+                }
                 Err(RecvError::Lagged(_)) => {
                     b.rev += 1;
                     b.queues_rev += 1;
@@ -315,6 +324,7 @@ fn command(core: &Core, req: &Value) -> Result<Value> {
                 "show": std::mem::take(&mut b.show),
                 "exit": std::mem::take(&mut b.exit),
                 "add_requests": std::mem::take(&mut b.add_requests),
+                "notices": std::mem::take(&mut b.notices),
                 "power": b.power.take().map(|(queue, action)| json!({ "queue": queue, "action": action.as_str() })),
             });
             if since != Some(b.rev) {

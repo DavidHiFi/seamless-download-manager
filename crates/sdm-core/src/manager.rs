@@ -50,6 +50,9 @@ pub struct AddRequest {
     /// Bytes per second, 0 = none.
     #[serde(default)]
     pub speed_limit: u64,
+    /// Download it even when the same link already finished and its file is still there.
+    #[serde(default)]
+    pub again: bool,
 }
 
 impl fmt::Debug for AddRequest {
@@ -101,6 +104,144 @@ pub enum ManagerEvent {
     Done { id: i64, ok: bool },
     /// A started queue ran out of work with nothing failed, and has a power action.
     QueueFinished { id: i64, name: String, action: PowerAction },
+    /// Something the person should see in a pop-up: a finished, failed, skipped, unpacked or
+    /// flagged download. `path` is the file or folder the pop-up's buttons open.
+    Notice(Notice),
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Notice {
+    pub id: i64,
+    /// done, unpacked, failed, already, threat or nospace.
+    pub kind: &'static str,
+    pub name: String,
+    pub path: String,
+    pub text: String,
+}
+
+const MB: u64 = 1024 * 1024;
+const DAY_MS: i64 = 86_400_000;
+const CLEANUP_EVERY: Duration = Duration::from_secs(3600);
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// What gets a Windows Security scan when it finishes.
+const SCAN_EXTS: &[&str] = &[
+    "exe", "msi", "msix", "msixbundle", "appx", "appxbundle", "bat", "cmd", "ps1", "vbs", "js", "jse", "wsf", "scr",
+    "com", "dll", "jar", "iso", "img", "zip", "7z", "rar", "tar", "gz", "tgz", "xz", "bz2", "zst", "cab",
+];
+/// What Windows' own tar can unpack.
+const ARCHIVE_EXTS: &[&str] = &["zip", "7z", "rar", "tar", "tgz", "tbz2", "txz", "gz", "bz2", "xz", "zst"];
+
+fn ext_of(name: &str) -> String {
+    Path::new(name).extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default()
+}
+
+pub(crate) fn is_archive(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    ARCHIVE_EXTS.contains(&ext_of(&lower).as_str())
+        // A lone .gz or .xz is one compressed file, not an archive, unless it is a tarball.
+        && (!matches!(ext_of(&lower).as_str(), "gz" | "bz2" | "xz" | "zst") || lower.contains(".tar."))
+}
+
+pub(crate) fn wants_scan(name: &str) -> bool {
+    SCAN_EXTS.contains(&ext_of(name).as_str())
+}
+
+/// The folder an archive unpacks into: its name without the archive ending, made unique.
+pub(crate) fn unpack_folder(archive: &Path) -> PathBuf {
+    let name = archive.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "unpacked".into());
+    let lower = name.to_ascii_lowercase();
+    let cut = [".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"]
+        .iter()
+        .find(|e| lower.ends_with(*e))
+        .map(|e| name.len() - e.len())
+        .or_else(|| name.rfind('.'))
+        .filter(|&i| i > 0)
+        .unwrap_or(name.len());
+    let stem = name[..cut].trim_end_matches(['.', ' ']).to_string();
+    let parent = archive.parent().unwrap_or(Path::new("."));
+    let mut dest = parent.join(&stem);
+    let mut n = 2;
+    while dest.exists() {
+        dest = parent.join(format!("{stem} ({n})"));
+        n += 1;
+    }
+    dest
+}
+
+fn free_bytes(folder: &str) -> Option<u64> {
+    use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+    use windows::core::HSTRING;
+    // The folder may not exist yet; its drive does.
+    let mut probe = Path::new(folder);
+    while !probe.exists() {
+        probe = probe.parent()?;
+    }
+    let mut free = 0u64;
+    unsafe { GetDiskFreeSpaceExW(&HSTRING::from(probe.as_os_str()), Some(&mut free), None, None).ok()? };
+    Some(free)
+}
+
+pub(crate) fn human_size(bytes: u64) -> String {
+    let gb = bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+    if gb >= 1.0 { format!("{gb:.1} GB") } else { format!("{} MB", bytes / MB) }
+}
+
+fn hidden(program: &str) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = std::process::Command::new(program);
+    cmd.creation_flags(CREATE_NO_WINDOW).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    cmd
+}
+
+/// True when Windows Security says the file holds a threat. Any other outcome (no scanner,
+/// scanner off, timeout) counts as clean, because the file was already checked on write.
+fn defender_flags(path: &Path) -> bool {
+    let scanner = Path::new(r"C:\Program Files\Windows Defender\MpCmdRun.exe");
+    if !scanner.is_file() {
+        return false;
+    }
+    let Ok(mut child) = hidden(&scanner.to_string_lossy()).args(["-Scan", "-ScanType", "3", "-File"]).arg(path).spawn() else {
+        return false;
+    };
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.code() == Some(2),
+            Ok(None) if started.elapsed() < Duration::from_secs(180) => std::thread::sleep(Duration::from_millis(200)),
+            _ => {
+                let _ = child.kill();
+                return false;
+            }
+        }
+    }
+}
+
+fn unpack(archive: &Path) -> Result<PathBuf> {
+    let dest = unpack_folder(archive);
+    std::fs::create_dir_all(&dest).context("could not make the folder to unpack into")?;
+    let tar = Path::new(r"C:\Windows\System32\tar.exe");
+    let ok = hidden(&tar.to_string_lossy()).arg("-xf").arg(archive).arg("-C").arg(&dest).status().is_ok_and(|s| s.success());
+    if !ok {
+        let _ = std::fs::remove_dir_all(&dest);
+        bail!("Windows could not unpack it");
+    }
+    Ok(dest)
+}
+
+/// Sends a file to the Recycle Bin, so turning on "delete the archive" never loses data.
+fn recycle(path: &Path) -> bool {
+    use windows::Win32::UI::Shell::{FO_DELETE, FOF_ALLOWUNDO, FOF_NO_UI, SHFILEOPSTRUCTW, SHFileOperationW};
+    use std::os::windows::ffi::OsStrExt;
+    // SHFileOperation takes a list that ends in two nulls.
+    let mut from: Vec<u16> = path.as_os_str().encode_wide().chain([0, 0]).collect();
+    let mut op = SHFILEOPSTRUCTW {
+        wFunc: FO_DELETE,
+        pFrom: windows::core::PCWSTR(from.as_mut_ptr()),
+        fFlags: (FOF_ALLOWUNDO | FOF_NO_UI).0 as u16,
+        ..Default::default()
+    };
+    unsafe { SHFileOperationW(&mut op) == 0 && !op.fAnyOperationsAborted.as_bool() }
 }
 
 enum RunCmd {
@@ -132,6 +273,9 @@ struct State {
     recent: Vec<Recent>,
     engine: Option<Engine>,
     last_tick: Option<NaiveDateTime>,
+    /// Downloads being stopped because their drive is too full, with the reason to show.
+    no_space: HashMap<i64, String>,
+    last_cleanup: Option<Instant>,
 }
 
 struct KeepAwake {
@@ -257,6 +401,8 @@ impl Manager {
             recent: Vec::new(),
             engine: None,
             last_tick: None,
+            no_space: HashMap::new(),
+            last_cleanup: None,
         };
         let manager = Arc::new(Manager { data_dir, store, state: Mutex::new(state), events, rt, limiter, awake: KeepAwake::new() });
         Self::spawn_ticker(&manager);
@@ -300,8 +446,100 @@ impl Manager {
                 interval.tick().await;
                 let Some(manager) = weak.upgrade() else { break };
                 manager.schedule_tick(Local::now().naive_local());
+                manager.clear_old_finished(now_ms(), false);
             }
         });
+    }
+
+    /// Takes finished entries older than the setting off the list. Their files stay. Runs at
+    /// most once an hour unless `force`. Returns how many went.
+    pub fn clear_old_finished(self: &Arc<Self>, now: i64, force: bool) -> usize {
+        let doomed: Vec<i64> = {
+            let mut st = self.lock();
+            if !force && st.last_cleanup.is_some_and(|at| at.elapsed() < CLEANUP_EVERY) {
+                return 0;
+            }
+            st.last_cleanup = Some(Instant::now());
+            let days = st.settings.clear_finished_after_days;
+            if days == 0 {
+                return 0;
+            }
+            let cutoff = now - days as i64 * DAY_MS;
+            st.items
+                .values()
+                .filter(|i| i.status == Status::Completed && i.date_finished.is_some_and(|d| d < cutoff))
+                .map(|i| i.id)
+                .collect()
+        };
+        doomed.iter().filter(|id| self.remove(**id, false).is_ok()).count()
+    }
+
+    fn notice(&self, id: i64, kind: &'static str, name: &str, path: &Path, text: impl Into<String>) {
+        self.emit(ManagerEvent::Notice(Notice {
+            id,
+            kind,
+            name: name.to_string(),
+            path: path.to_string_lossy().into_owned(),
+            text: text.into(),
+        }));
+    }
+
+    /// Scans and unpacks a finished file off the async threads, then shows one pop-up.
+    fn after_finish(self: &Arc<Self>, id: i64, path: PathBuf) {
+        let s = self.lock().settings.clone();
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let scan = s.scan_downloads && wants_scan(&name);
+        let extract = s.extract_archives && is_archive(&name);
+        let me = self.clone();
+        self.rt.spawn_blocking(move || {
+            if scan && defender_flags(&path) {
+                let text = "Windows Security found a threat in this file and dealt with it.";
+                let mut st = me.lock();
+                if let Some(item) = st.items.get_mut(&id) {
+                    item.error = Some(text.into());
+                    let item = item.clone();
+                    me.persist(&item);
+                }
+                drop(st);
+                me.emit(ManagerEvent::Changed(id));
+                return me.notice(id, "threat", &name, &path, text);
+            }
+            if extract && path.is_file() {
+                match unpack(&path) {
+                    Ok(dest) => {
+                        let gone = s.delete_archive_after_extract && recycle(&path);
+                        let text = if gone { "Unpacked. The archive went to the Recycle Bin." } else { "Unpacked next to the archive." };
+                        return me.notice(id, "unpacked", &name, &dest, text);
+                    }
+                    Err(e) => return me.notice(id, "done", &name, &path, format!("{e}.")),
+                }
+            }
+            me.notice(id, "done", &name, &path, "");
+        });
+    }
+
+    /// Stops a download whose drive would drop under the free-space floor.
+    fn check_space_locked(&self, st: &mut State, id: i64) {
+        let floor = st.settings.min_free_space_mb.saturating_mul(MB);
+        if floor == 0 || st.no_space.contains_key(&id) {
+            return;
+        }
+        let Some(item) = st.items.get(&id) else { return };
+        let left = item.size.map(|s| s.saturating_sub(item.downloaded)).unwrap_or(0);
+        let Some(free) = free_bytes(&item.folder) else { return };
+        if free >= left.saturating_add(floor) {
+            return;
+        }
+        let reason = format!(
+            "Not enough free space. It needs {} and the drive has {}, with {} kept free.",
+            human_size(left),
+            human_size(free),
+            human_size(floor)
+        );
+        if let Some(run) = st.running.get(&id) {
+            let _ = run.cmd.send(RunCmd::Pause);
+            st.no_space.insert(id, reason);
+        }
     }
 
     fn schedule_tick(self: &Arc<Self>, now: NaiveDateTime) {
@@ -410,6 +648,16 @@ impl Manager {
                 && st.items.contains_key(&found.id)
             {
                 return Ok(found.id);
+            }
+            if st.settings.skip_already_downloaded && !req.again {
+                let done = st.items.values().rev().find(|i| {
+                    i.status == Status::Completed && i.url == url && Path::new(&i.folder).join(&i.name).is_file()
+                });
+                if let Some(done) = done {
+                    let path = Path::new(&done.folder).join(&done.name);
+                    self.notice(done.id, "already", &done.name, &path, "You already downloaded this, and the file is still there.");
+                    return Ok(done.id);
+                }
             }
 
             let explicit_name = req.name.as_deref().or(req.suggested_name.as_deref()).map(str::trim).filter(|n| !n.is_empty());
@@ -812,6 +1060,7 @@ impl Manager {
                 let item = item.clone();
                 self.persist(&item);
                 self.emit(ManagerEvent::Changed(id));
+                self.check_space_locked(st, id);
                 None
             }
             Event::Progress(p) => {
@@ -854,6 +1103,19 @@ impl Manager {
                 None
             }
             Event::Paused(state) => {
+                if let Some(reason) = st.no_space.remove(&id) {
+                    st.manual.remove(&id);
+                    let item = st.items.get(&id)?;
+                    let (name, folder) = (item.name.clone(), item.folder.clone());
+                    self.emit(ManagerEvent::Done { id, ok: false });
+                    self.notice(id, "nospace", &name, Path::new(&folder), reason.clone());
+                    self.finish_locked(st, id, |item| {
+                        item.status = Status::Failed;
+                        item.error = Some(reason);
+                        apply_state(item, state);
+                    });
+                    return Some(None);
+                }
                 self.finish_locked(st, id, |item| {
                     item.status = Status::Paused;
                     apply_state(item, state);
@@ -862,6 +1124,10 @@ impl Manager {
             }
             Event::Failed { error, state } => {
                 self.emit(ManagerEvent::Done { id, ok: false });
+                st.no_space.remove(&id);
+                if let Some(item) = st.items.get(&id) {
+                    self.notice(id, "failed", &item.name, Path::new(&item.folder), error.to_string());
+                }
                 self.finish_locked(st, id, |item| {
                     item.status = Status::Failed;
                     item.error = Some(error.to_string());
@@ -891,6 +1157,7 @@ impl Manager {
                     item.date_finished = Some(now_ms());
                 });
                 self.emit(ManagerEvent::Done { id, ok: true });
+                self.after_finish(id, done.path.clone());
                 if !queues_changed.is_empty() {
                     self.emit(ManagerEvent::QueuesChanged);
                 }
@@ -1132,7 +1399,7 @@ fn job_spec(item: &DownloadItem, s: &Settings) -> JobSpec {
     spec.sparse = s.use_sparse_file_allocation;
     spec.temp_suffix = s.append_extension_to_incomplete_downloads.then(|| s.temp_suffix.clone());
     spec.apply_server_mtime = s.use_server_last_modified_time;
-    spec.on_exists = OnExists::Number;
+    spec.on_exists = if s.replace_same_name { OnExists::Overwrite } else { OnExists::Number };
     spec
 }
 
@@ -1353,6 +1620,88 @@ mod tests {
         assert_eq!(schedule_actions(&queues, at(7, 0), at(8, 0)), vec![(0, ScheduleAction::Stop)]);
         queue.schedule.days = vec![Weekday::Friday];
         assert!(schedule_actions(&[queue], at(2, 29), at(2, 30)).is_empty());
+    }
+
+    #[test]
+    fn archive_and_scan_types() {
+        assert!(is_archive("a.zip") && is_archive("B.RAR") && is_archive("c.7z") && is_archive("d.tar.gz"));
+        assert!(!is_archive("log.gz") && !is_archive("movie.mkv"));
+        assert!(wants_scan("setup.exe") && wants_scan("x.zip") && !wants_scan("song.flac"));
+    }
+
+    #[test]
+    fn unpack_folder_is_unique() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(unpack_folder(&dir.path().join("pack.tar.gz")), dir.path().join("pack"));
+        std::fs::create_dir(dir.path().join("pack")).unwrap();
+        assert_eq!(unpack_folder(&dir.path().join("pack.zip")), dir.path().join("pack (2)"));
+        assert_eq!(unpack_folder(&dir.path().join(".zip")), dir.path().join(".zip"));
+    }
+
+    #[test]
+    fn unpacks_with_windows_tar() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("inside.txt"), b"hi").unwrap();
+        let archive = dir.path().join("box.zip");
+        let made = hidden(r"C:\Windows\System32\tar.exe")
+            .args(["-a", "-cf"])
+            .arg(&archive)
+            .arg("-C")
+            .arg(dir.path())
+            .arg("inside.txt")
+            .status()
+            .unwrap();
+        assert!(made.success());
+        let dest = unpack(&archive).unwrap();
+        assert_eq!(dest, dir.path().join("box"));
+        assert_eq!(std::fs::read(dest.join("inside.txt")).unwrap(), b"hi");
+        std::fs::write(dir.path().join("broken.zip"), b"not a zip").unwrap();
+        assert!(unpack(&dir.path().join("broken.zip")).is_err());
+        assert!(!dir.path().join("broken").exists());
+    }
+
+    #[tokio::test]
+    async fn already_downloaded_link_is_skipped() {
+        let (dir, m) = open().await;
+        let file = dir.path().join("tool.zip");
+        std::fs::write(&file, b"1").unwrap();
+        let first = m.adopt_file(&file, Some("https://example.com/tool.zip".into()), None).unwrap();
+        let mut rx = m.subscribe();
+        assert_eq!(m.add(req("https://example.com/tool.zip")).unwrap(), first);
+        assert!(matches!(rx.try_recv(), Ok(ManagerEvent::Notice(n)) if n.kind == "already" && n.id == first));
+        let again = m.add(AddRequest { again: true, ..req("https://example.com/tool.zip") }).unwrap();
+        assert_ne!(again, first);
+        std::fs::remove_file(&file).unwrap();
+        assert_ne!(m.add(AddRequest { referrer: Some("https://example.com/".into()), ..req("https://example.com/tool.zip") }).unwrap(), first);
+    }
+
+    #[tokio::test]
+    async fn old_finished_entries_leave_the_list_but_files_stay() {
+        let (dir, m) = open().await;
+        let file = dir.path().join("old.pdf");
+        std::fs::write(&file, b"1").unwrap();
+        let id = m.adopt_file(&file, None, None).unwrap();
+        assert_eq!(m.clear_old_finished(now_ms(), true), 0);
+        assert_eq!(m.clear_old_finished(now_ms() + 31 * DAY_MS, false), 0, "runs at most once an hour");
+        assert_eq!(m.clear_old_finished(now_ms() + 31 * DAY_MS, true), 1);
+        assert!(m.get(id).is_none());
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert!(file.exists());
+    }
+
+    #[test]
+    fn replace_setting_picks_overwrite() {
+        let item = DownloadItem::new("https://e.com/a.zip", "D:\\Dl", "a.zip");
+        assert_eq!(job_spec(&item, &Settings::default()).on_exists, OnExists::Number);
+        let s = Settings { replace_same_name: true, ..Settings::default() };
+        assert_eq!(job_spec(&item, &s).on_exists, OnExists::Overwrite);
+    }
+
+    #[test]
+    fn free_space_reads_a_missing_folder() {
+        assert!(free_bytes(r"C:\definitely\not\here\sdm").is_some_and(|f| f > 0));
+        assert_eq!(human_size(3 * 1024 * MB / 2), "1.5 GB");
+        assert_eq!(human_size(5 * MB), "5 MB");
     }
 
     #[test]

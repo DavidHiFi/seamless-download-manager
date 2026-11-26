@@ -4630,7 +4630,7 @@ dependencies = [
 
 [[package]]
 name = "sdm-api"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4645,7 +4645,7 @@ dependencies = [
 
 [[package]]
 name = "sdm-core"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4664,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "sdm-engine"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bytes",
@@ -4684,7 +4684,7 @@ dependencies = [
 
 [[package]]
 name = "sdm-ffi"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "reqwest",
@@ -4700,7 +4700,7 @@ dependencies = [
 
 [[package]]
 name = "sdm-host"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -4711,7 +4711,7 @@ dependencies = [
 
 [[package]]
 name = "sdm-setup"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "embed-resource",
@@ -4724,7 +4724,7 @@ dependencies = [
 
 [[package]]
 name = "seamless-download-manager"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arboard",

@@ -101,6 +101,20 @@ pub struct Settings {
     pub per_host: Vec<PerHostRule>,
     /// Empty: Windows looks up names. Otherwise an https address that answers DNS questions.
     pub dns_over_https: String,
+    /// A download that would leave its drive with less than this many MB is stopped. 0 = off.
+    pub min_free_space_mb: u64,
+    /// Unpack zip, 7z, rar and tar files next to themselves when they finish.
+    pub extract_archives: bool,
+    /// Move the archive to the Recycle Bin after it unpacked cleanly.
+    pub delete_archive_after_extract: bool,
+    /// Ask Windows Security to scan programs and archives when they finish.
+    pub scan_downloads: bool,
+    /// Finished entries older than this many days leave the list. Files stay. 0 = never.
+    pub clear_finished_after_days: u32,
+    /// A new file with a name already in the folder replaces it instead of getting _1.
+    pub replace_same_name: bool,
+    /// A link that already finished and whose file is still there is not downloaded again.
+    pub skip_already_downloaded: bool,
 }
 
 impl fmt::Debug for Settings {
@@ -155,6 +169,13 @@ impl Default for Settings {
             proxy: ProxyConfig::System,
             per_host: Vec::new(),
             dns_over_https: String::new(),
+            min_free_space_mb: 2048,
+            extract_archives: true,
+            delete_archive_after_extract: false,
+            scan_downloads: true,
+            clear_finished_after_days: 30,
+            replace_same_name: false,
+            skip_already_downloaded: true,
         }
     }
 }
@@ -263,6 +284,10 @@ mod tests {
         assert_eq!(s.thread_count, 4);
         assert_eq!(s.temp_suffix, ".sdm-part");
         assert_eq!(s.api_key, "abc");
+        assert_eq!(s.min_free_space_mb, 2048);
+        assert!(s.extract_archives && s.scan_downloads && s.skip_already_downloaded);
+        assert!(!s.delete_archive_after_extract && !s.replace_same_name);
+        assert_eq!(s.clear_finished_after_days, 30);
     }
 
     #[test]

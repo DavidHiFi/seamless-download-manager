@@ -42,9 +42,9 @@ Each request is an object with `cmd` plus the fields shown.
 
 | cmd | fields | reply |
 |---|---|---|
-| `version` | | `{"version":"0.1.1"}` |
+| `version` | | `{"version":"0.2.0"}` |
 | `status` | | `api_up`, `api_port`, `api_text`, `data_dir` |
-| `poll` | `rev` (optional, last rev seen) | `rev`, `queues_rev`, `settings_rev`, `show`, `exit`, `add_requests` (list of add requests from the browser), `power` (`{queue, action}` or null), and `downloads` (full list) only when `rev` differs |
+| `poll` | `rev` (optional, last rev seen) | `rev`, `queues_rev`, `settings_rev`, `show`, `exit`, `add_requests` (list of add requests from the browser), `power` (`{queue, action}` or null), `notices` (news since the last poll, below), and `downloads` (full list) only when `rev` differs |
 | `list` | | list of downloads |
 | `get` | `id` | one download or null |
 | `settings` | | the whole settings object |
@@ -67,7 +67,6 @@ Each request is an object with `cmd` plus the fields shown.
 | `probe` | `url`, `headers` (list of `[name, value]`) | `{job}`; result: `final_url`, `file_name`, `total`, `resumable`, `content_type`, `is_web_page`, `needs_auth` |
 | `checksum` | `id` or `path`, `kind` (MD5, SHA-1, SHA-256, SHA-512), `expected` (optional) | `{job}`; result: `sum`, `kind`, `matches` (true, false or null) |
 | `check_update` | `current` (optional version) | `{job}`; result: `{release:false}` or `{release, tag, url, newer}` |
-| `import_abdm` | `path` | `{job}`; result: `report` |
 | `job` | `job` | `{done:false}` or `{done:true, ok, result}` / `{done:true, ok:false, error}` (read once) |
 | `power` | `action` (sleep, hibernate, shutdown, restart) | ok; with `SDM_POWER_DRY_RUN` set, writes `power-dry-run.txt` instead |
 
@@ -82,8 +81,25 @@ date_finished, queue_id, category_id, connections, speed_limit`. `status` is one
 
 `url` (required), `kind` (`"Http"` or `"Hls"` for a stream playlist, default Http), `headers`, `referrer`,
 `suggested_name`, `folder`, `name`, `queue_id`, `category_id`, `start`, `start_queue`,
-`basic_auth` (`[name, password]`), `user_agent`, `threads`, `speed_limit`. Leave out what
+`basic_auth` (`[name, password]`), `user_agent`, `threads`, `speed_limit`, `again` (true downloads a link even when the same file already finished and is still on disk). Leave out what
 you do not set.
+
+### Notices
+
+Each poll hands over the news since the last one, at most 20, oldest first: `{id, kind, name, path, text}`.
+
+The kinds are:
+
+| kind | when | `path` |
+|---|---|---|
+| `done` | a download finished | the file |
+| `unpacked` | an archive finished and unpacked | the folder it unpacked into |
+| `threat` | Windows Security flagged the finished file | the file |
+| `already` | an added link was skipped because the file is already there | the file |
+| `nospace` | a download stopped before its drive went under the free-space floor | the folder |
+| `failed` | a download stopped with an error | the folder |
+
+`text` is a plain sentence for the user and may be empty.
 
 ### Polling
 

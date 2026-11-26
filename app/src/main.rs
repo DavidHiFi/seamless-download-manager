@@ -231,6 +231,10 @@ fn listen(manager: &Arc<Manager>, shared: Arc<Shared>, weak: slint::Weak<AppWind
                 Ok(ManagerEvent::Done { ok, .. }) => {
                     extras::play_done(&manager.settings(), ok);
                 }
+                // The pop-ups belong to the Windhawk mod. This window shows the same news in its list.
+                Ok(ManagerEvent::Notice(_)) => {
+                    shared.dirty.fetch_or(LIST_DIRTY, Ordering::SeqCst);
+                }
                 Ok(ManagerEvent::QueueFinished { name, action, .. }) => {
                     if let Ok(mut slot) = shared.power.lock() {
                         *slot = Some((name, action));
