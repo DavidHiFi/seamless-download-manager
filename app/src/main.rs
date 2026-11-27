@@ -42,7 +42,7 @@ struct View {
     pending_add: Option<AddRequest>,
     auto_name: String,
     queue_ids: Vec<i64>,
-    glass_done: bool,
+    taskbar_guarded: bool,
     toast_gen: u64,
 }
 
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
         pending_add: None,
         auto_name: String::new(),
         queue_ids: Vec::new(),
-        glass_done: false,
+        taskbar_guarded: false,
         toast_gen: 0,
     }));
 
@@ -265,11 +265,11 @@ fn show_window_with(app: &AppWindow, view: &Rc<RefCell<View>>, forward: bool) {
     slint::Timer::single_shot(Duration::from_millis(30), move || {
         let Some(app) = weak.upgrade() else { return };
         if let Some(hwnd) = win::hwnd_of(app.window()) {
+            win::apply_glass(hwnd);
             let mut v = view.borrow_mut();
-            if !v.glass_done {
-                win::apply_glass(hwnd);
+            if !v.taskbar_guarded {
                 win::guard_taskbar_restart(hwnd);
-                v.glass_done = true;
+                v.taskbar_guarded = true;
             }
             if forward {
                 win::bring_forward(hwnd);
