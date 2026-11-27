@@ -1,9 +1,15 @@
 //! The small bits of Windows the window needs: glass, single instance, opening files, start with Windows.
 
+use std::ffi::c_void;
 use std::path::Path;
 
 use windows::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, LPARAM, LRESULT, WPARAM};
-use windows::Win32::Graphics::Dwm::{DWMWINDOWATTRIBUTE, DwmExtendFrameIntoClientArea, DwmSetWindowAttribute};
+use windows::Win32::Graphics::Dwm::{
+    DWM_BLURBEHIND, DWMWINDOWATTRIBUTE, DwmEnableBlurBehindWindow, DwmExtendFrameIntoClientArea,
+    DwmSetWindowAttribute,
+};
+use windows::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject, HGDIOBJ};
+use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
 use windows::Win32::System::Registry::{
     HKEY, HKEY_CURRENT_USER, KEY_SET_VALUE, REG_SZ, RegCloseKey, RegDeleteValueW, RegOpenKeyExW, RegSetValueExW,
 };
@@ -13,13 +19,58 @@ use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass, ShellExecute
 use windows::Win32::UI::WindowsAndMessaging::{
     DefWindowProcW, IsIconic, RegisterWindowMessageW, SW_RESTORE, SW_SHOWNORMAL, SetForegroundWindow, ShowWindow,
 };
-use windows::core::{HSTRING, PCWSTR, w};
+use windows::core::{BOOL, HSTRING, PCWSTR, s, w};
 
 const DWMWA_USE_IMMERSIVE_DARK_MODE: i32 = 20;
+const DWMWA_WINDOW_CORNER_PREFERENCE: i32 = 33;
+const DWMWA_CAPTION_COLOR: i32 = 35;
 const DWMWA_SYSTEMBACKDROP_TYPE: i32 = 38;
-const DWMSBT_TRANSIENTWINDOW: i32 = 3;
+const WCA_ACCENT_POLICY: i32 = 19;
+const ACCENT_DISABLED: i32 = 0;
+const ACCENT_ENABLE_ACRYLICBLURBEHIND: i32 = 4;
+const ACCENT_FLAGS: u32 = 2;
+const ACCENT_COLOR: u32 = 0x012E1E1E;
 const RUN_KEY: PCWSTR = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 const RUN_VALUE: PCWSTR = w!("SeamlessDownloadManager");
+
+#[repr(C)]
+struct AccentPolicy {
+    state: i32,
+    flags: u32,
+    gradient_color: u32,
+    animation_id: u32,
+}
+
+#[repr(C)]
+struct WindowCompositionAttributeData {
+    attribute: i32,
+    data: *mut c_void,
+    size: usize,
+}
+
+type SetWindowCompositionAttributeFn =
+    unsafe extern "system" fn(HWND, *mut WindowCompositionAttributeData) -> BOOL;
+
+unsafe fn set_window_composition_attribute(hwnd: HWND, policy: &AccentPolicy) -> bool {
+    static PROC: std::sync::OnceLock<Option<SetWindowCompositionAttributeFn>> =
+        std::sync::OnceLock::new();
+    let proc = PROC.get_or_init(|| unsafe {
+        let module = GetModuleHandleW(w!("user32.dll")).ok()?;
+        let proc = GetProcAddress(module, s!("SetWindowCompositionAttribute"))?;
+        Some(std::mem::transmute::<
+            unsafe extern "system" fn() -> isize,
+            SetWindowCompositionAttributeFn,
+        >(proc))
+    });
+    let Some(proc) = proc else { return false };
+
+    let mut data = WindowCompositionAttributeData {
+        attribute: WCA_ACCENT_POLICY,
+        data: policy as *const AccentPolicy as *mut c_void,
+        size: std::mem::size_of::<AccentPolicy>(),
+    };
+    unsafe { proc(hwnd, &mut data).as_bool() }
+}
 
 pub fn hwnd_of(window: &slint::Window) -> Option<HWND> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -31,24 +82,72 @@ pub fn hwnd_of(window: &slint::Window) -> Option<HWND> {
     }
 }
 
-/// Dark title bar plus the acrylic backdrop behind the see-through window body.
+/// Applies the house's dark acrylic material to the native window.
 pub fn apply_glass(hwnd: HWND) {
     unsafe {
-        let dark: i32 = 1;
+        let dark = 1i32;
+        let no_backdrop = 1i32;
+        let rounded = 2i32;
+        let no_caption_color = 0xFFFFFFFEu32;
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWINDOWATTRIBUTE(DWMWA_USE_IMMERSIVE_DARK_MODE),
-            &dark as *const i32 as *const _,
-            4,
+            &dark as *const i32 as *const c_void,
+            std::mem::size_of_val(&dark) as u32,
         );
-        let backdrop = DWMSBT_TRANSIENTWINDOW;
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWINDOWATTRIBUTE(DWMWA_SYSTEMBACKDROP_TYPE),
-            &backdrop as *const i32 as *const _,
-            4,
+            &no_backdrop as *const i32 as *const c_void,
+            std::mem::size_of_val(&no_backdrop) as u32,
         );
-        let margins = MARGINS { cxLeftWidth: -1, cxRightWidth: -1, cyTopHeight: -1, cyBottomHeight: -1 };
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWINDOWATTRIBUTE(DWMWA_WINDOW_CORNER_PREFERENCE),
+            &rounded as *const i32 as *const c_void,
+            std::mem::size_of_val(&rounded) as u32,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWINDOWATTRIBUTE(DWMWA_CAPTION_COLOR),
+            &no_caption_color as *const u32 as *const c_void,
+            std::mem::size_of_val(&no_caption_color) as u32,
+        );
+
+        let disabled = AccentPolicy {
+            state: ACCENT_DISABLED,
+            flags: 0,
+            gradient_color: 0,
+            animation_id: 0,
+        };
+        let _ = set_window_composition_attribute(hwnd, &disabled);
+
+        let region = CreateRectRgn(0, 0, -1, -1);
+        if !region.0.is_null() {
+            let blur = DWM_BLURBEHIND {
+                dwFlags: 0x1,
+                fEnable: BOOL(1),
+                hRgnBlur: region,
+                fTransitionOnMaximized: BOOL(0),
+            };
+            let _ = DwmEnableBlurBehindWindow(hwnd, &blur);
+            let _ = DeleteObject(HGDIOBJ(region.0));
+        }
+
+        let acrylic = AccentPolicy {
+            state: ACCENT_ENABLE_ACRYLICBLURBEHIND,
+            flags: ACCENT_FLAGS,
+            gradient_color: ACCENT_COLOR,
+            animation_id: 0,
+        };
+        let _ = set_window_composition_attribute(hwnd, &acrylic);
+
+        let margins = MARGINS {
+            cxLeftWidth: -1,
+            cxRightWidth: -1,
+            cyTopHeight: -1,
+            cyBottomHeight: -1,
+        };
         let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
     }
 }

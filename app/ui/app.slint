@@ -1181,7 +1181,7 @@ component AboutPage inherits Rectangle {
 }
 
 component AddDialog inherits Rectangle {
-    background: #11111b99;
+    background: Mocha.base;
     // Escape closes the dialog. Clicks outside the card stay inside the dialog.
     esc := FocusScope {
         key-pressed(event) => {
@@ -1263,7 +1263,7 @@ component AddDialog inherits Rectangle {
 }
 
 component ConfirmDialog inherits Rectangle {
-    background: #11111b99;
+    background: Mocha.base;
     // Escape closes the dialog. Clicks outside the card stay inside the dialog.
     esc := FocusScope {
         key-pressed(event) => {
@@ -1310,7 +1310,7 @@ component ConfirmDialog inherits Rectangle {
 }
 
 component LimitDialog inherits Rectangle {
-    background: #11111b99;
+    background: Mocha.base;
     // Escape closes the dialog. Clicks outside the card stay inside the dialog.
     esc := FocusScope {
         key-pressed(event) => {
@@ -1361,11 +1361,11 @@ component LimitDialog inherits Rectangle {
     init => { esc.focus(); }
 }
 
-// The dimmed backdrop and card every small dialog shares. Escape calls dismiss.
+// The opaque backdrop and card every small dialog shares. Escape calls dismiss.
 component Sheet inherits Rectangle {
     in property <length> card-width: 440px;
     callback dismiss();
-    background: #11111b99;
+    background: Mocha.base;
     esc := FocusScope {
         key-pressed(event) => {
             if event.text == Key.Escape {

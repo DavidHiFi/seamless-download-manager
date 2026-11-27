@@ -25,7 +25,7 @@ tray-icon = "0.26"
 arboard = { version = "3", default-features = false }
 rfd = "0.15"
 reqwest = { workspace = true, features = ["json"] }
-windows = { workspace = true, features = ["Win32_System_Com", "Win32_UI_Shell_Common", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_Graphics_Gdi", "Win32_System_Console", "Win32_Media_Audio", "Win32_System_Power"] }
+windows = { workspace = true, features = ["Win32_System_Com", "Win32_UI_Shell_Common", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_Graphics_Gdi", "Win32_System_Console", "Win32_Media_Audio", "Win32_System_Power", "Win32_System_LibraryLoader"] }
 
 [build-dependencies]
 slint-build = "1.19"
